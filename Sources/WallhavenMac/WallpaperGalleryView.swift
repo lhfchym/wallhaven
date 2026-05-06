@@ -3,6 +3,7 @@ import WallhavenCore
 
 struct WallpaperGalleryView: View {
     @StateObject private var viewModel = WallpaperGalleryViewModel()
+    @State private var isShowingSettings = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 10),
@@ -14,14 +15,36 @@ struct WallpaperGalleryView: View {
         VStack(spacing: 12) {
             header
             searchBar
-            preview
+            filterBar
+            WallpaperPreviewView(wallpaper: viewModel.selectedWallpaper)
             gallery
-            footer
+            WallpaperActionFooterView(
+                wallpaper: viewModel.selectedWallpaper,
+                errorMessage: viewModel.errorMessage,
+                successMessage: viewModel.successMessage,
+                isDownloading: viewModel.isDownloading,
+                isSettingWallpaper: viewModel.isSettingWallpaper,
+                downloadedWallpaperURL: viewModel.downloadedWallpaperURL,
+                onDownload: viewModel.downloadSelectedWallpaper,
+                onSetWallpaper: viewModel.setSelectedWallpaper
+            )
         }
         .padding(14)
         .frame(minWidth: 520, minHeight: 620)
         .task {
             viewModel.loadInitialWallpapers()
+        }
+        .sheet(isPresented: $isShowingSettings) {
+            WallhavenSettingsView(
+                apiKey: viewModel.preferences.apiKey,
+                onSave: { apiKey in
+                    viewModel.updateAPIKey(apiKey)
+                    isShowingSettings = false
+                },
+                onCancel: {
+                    isShowingSettings = false
+                }
+            )
         }
     }
 
@@ -50,6 +73,13 @@ struct WallpaperGalleryView: View {
             }
             .buttonStyle(.borderedProminent)
             .disabled(viewModel.isLoading)
+
+            Button {
+                isShowingSettings = true
+            } label: {
+                Image(systemName: "gearshape")
+            }
+            .help("Settings")
         }
     }
 
@@ -66,6 +96,65 @@ struct WallpaperGalleryView: View {
             }
             .disabled(viewModel.isLoading)
         }
+    }
+
+    private var filterBar: some View {
+        HStack(spacing: 10) {
+            Picker("Category", selection: categoryBinding) {
+                ForEach(WallhavenCategoryPreset.allCases) { category in
+                    Text(category.label).tag(category)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 120)
+
+            Picker("Purity", selection: purityBinding) {
+                ForEach(WallhavenPurityPreset.allCases) { purity in
+                    Text(purity.label).tag(purity)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 145)
+
+            Picker("Sorting", selection: sortingBinding) {
+                ForEach(WallhavenSorting.allCases) { sorting in
+                    Text(sorting.label).tag(sorting)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 130)
+
+            Spacer()
+
+            if !viewModel.preferences.apiKey.isEmpty {
+                Label("API Key", systemImage: "key.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.iconOnly)
+                    .help("API key configured")
+            }
+        }
+    }
+
+    private var categoryBinding: Binding<WallhavenCategoryPreset> {
+        Binding(
+            get: { viewModel.preferences.categories },
+            set: { viewModel.updateCategory($0) }
+        )
+    }
+
+    private var purityBinding: Binding<WallhavenPurityPreset> {
+        Binding(
+            get: { viewModel.preferences.purity },
+            set: { viewModel.updatePurity($0) }
+        )
+    }
+
+    private var sortingBinding: Binding<WallhavenSorting> {
+        Binding(
+            get: { viewModel.preferences.sorting },
+            set: { viewModel.updateSorting($0) }
+        )
     }
 
     private var gallery: some View {
@@ -104,170 +193,5 @@ struct WallpaperGalleryView: View {
                 )
             }
         }
-    }
-
-    private var preview: some View {
-        Group {
-            if let wallpaper = viewModel.selectedWallpaper {
-                AsyncImage(url: wallpaper.thumbs.original) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                Image(systemName: "photo.badge.exclamationmark")
-                                    .foregroundStyle(.secondary)
-                            }
-                    case .empty:
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                    @unknown default:
-                        Rectangle()
-                            .fill(.quaternary)
-                    }
-                }
-                .frame(height: 150)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .overlay(alignment: .bottomLeading) {
-                    Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
-                        .font(.caption2)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 5)
-                        .foregroundStyle(.white)
-                        .background(.black.opacity(0.56), in: Capsule())
-                        .padding(8)
-                }
-            }
-        }
-    }
-
-    private var footer: some View {
-        HStack(spacing: 10) {
-            if let wallpaper = viewModel.selectedWallpaper {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(wallpaper.resolution)
-                        .font(.caption)
-                    Text("#\(wallpaper.id) - \(wallpaper.category) - \(wallpaper.purity)")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            } else {
-                Text("Select a wallpaper")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            if let message = viewModel.errorMessage {
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .lineLimit(1)
-            } else if let message = viewModel.successMessage {
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-
-            Spacer()
-
-            Button("Open") {
-                if let url = viewModel.selectedWallpaper?.url {
-                    NSWorkspace.shared.open(url)
-                }
-            }
-            .disabled(viewModel.selectedWallpaper == nil)
-
-            Button {
-                viewModel.downloadSelectedWallpaper()
-            } label: {
-                if viewModel.isDownloading {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Text(viewModel.downloadedWallpaperURL == nil ? "Download" : "Downloaded")
-                }
-            }
-            .disabled(viewModel.selectedWallpaper == nil || viewModel.isDownloading)
-
-            Button {
-                viewModel.setSelectedWallpaper()
-            } label: {
-                if viewModel.isSettingWallpaper {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Text("Set Wallpaper")
-                }
-            }
-            .keyboardShortcut(.defaultAction)
-            .disabled(viewModel.selectedWallpaper == nil || viewModel.isSettingWallpaper)
-        }
-    }
-
-    private func formattedFileSize(_ byteCount: Int) -> String {
-        ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)
-    }
-}
-
-private struct WallpaperThumbnailView: View {
-    let wallpaper: WallhavenWallpaper
-    let isSelected: Bool
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            AsyncImage(url: wallpaper.thumbs.large) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundStyle(.secondary)
-                        }
-                case .empty:
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                @unknown default:
-                    Rectangle()
-                        .fill(.quaternary)
-                }
-            }
-            .frame(height: 92)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(alignment: .bottomLeading) {
-                Text(wallpaper.resolution)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
-                    .foregroundStyle(.white)
-                    .background(.black.opacity(0.54), in: Capsule())
-                    .padding(6)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 3)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 6))
-        }
-        .buttonStyle(.plain)
-        .help("#\(wallpaper.id) - \(wallpaper.category) - \(wallpaper.purity)")
     }
 }

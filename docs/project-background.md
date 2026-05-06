@@ -2,14 +2,14 @@
 
 ## Overview
 
-WallhavenMac is a macOS-only menu bar wallpaper picker built around wallhaven.cc.
+WallhavenMac is a macOS-only wallpaper picker built around wallhaven.cc.
 
 The product is not positioned as a general-purpose API wrapper or a command-line downloader. Its primary goal is to
 make wallpaper discovery and setting feel fast, visual, and native on Mac.
 
 The core experience should be:
 
-1. Open the menu bar app.
+1. Open the app from the Dock or menu bar shortcut.
 2. Browse a compact grid of wallpapers matched to the current Mac display.
 3. Pick one that feels right.
 4. Preview it.
@@ -35,7 +35,7 @@ whether an image fits the screen.
 
 The first product milestone is the smallest complete loop:
 
-- macOS menu bar app.
+- macOS app with a standard Dock window and optional menu bar shortcut.
 - Grid of wallhaven wallpaper thumbnails.
 - Automatic matching by current display ratio and minimum resolution.
 - Search keyword input.
@@ -63,7 +63,7 @@ The app is built with Swift, SwiftUI, and AppKit.
 The project uses two main modules:
 
 - `WallhavenCore`: API client, search request modeling, display matching, caching, and wallpaper-setting logic.
-- `WallhavenMac`: macOS menu bar app, popover UI, gallery view, preview flow, and app-level state.
+- `WallhavenMac`: macOS app shell, gallery view, preview flow, wallpaper setting, and app-level state.
 
 The repository is SwiftPM-first so the core development loop can run from the terminal:
 
@@ -108,7 +108,7 @@ The app should optimize for scanning, not configuration.
 
 Primary workflow:
 
-- Open menu bar popover.
+- Open the app window from the Dock or menu bar.
 - See a grid immediately.
 - Search or adjust filters only when needed.
 - Click one wallpaper to inspect it.
@@ -116,7 +116,7 @@ Primary workflow:
 
 UI guidelines:
 
-- Keep the popover compact but image-forward.
+- Keep the window compact but image-forward.
 - Prefer thumbnails and visual feedback over text-heavy controls.
 - Make `Refresh`, `Preview`, and `Set Wallpaper` easy to reach.
 - Keep settings light in the MVP.
@@ -166,7 +166,7 @@ The initial skeleton already includes:
 - XcodeGen configuration.
 - SwiftFormat and SwiftLint configuration.
 - `WallhavenCore` module.
-- `WallhavenMac` menu bar app prototype.
+- `WallhavenMac` app prototype.
 - Basic display matching request tests.
 
 The first committed baseline is:

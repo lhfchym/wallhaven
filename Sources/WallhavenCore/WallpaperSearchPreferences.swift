@@ -51,13 +51,32 @@ public struct WallhavenPurity: OptionSet, Equatable, Sendable {
     }
 }
 
-public enum WallhavenSorting: String, Sendable {
+public enum WallhavenSorting: String, CaseIterable, Identifiable, Sendable {
     case dateAdded = "date_added"
     case favorites
     case random
     case relevance
     case toplist
     case views
+
+    public var id: String { rawValue }
+
+    public var label: String {
+        switch self {
+        case .dateAdded:
+            "Latest"
+        case .favorites:
+            "Favorites"
+        case .random:
+            "Random"
+        case .relevance:
+            "Relevance"
+        case .toplist:
+            "Toplist"
+        case .views:
+            "Views"
+        }
+    }
 }
 
 private extension OptionSet where RawValue == Int {

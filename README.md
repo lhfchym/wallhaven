@@ -1,10 +1,10 @@
 # WallhavenMac
 
-A macOS menu bar wallpaper picker for wallhaven.cc.
+A macOS wallpaper picker for wallhaven.cc.
 
 The first milestone is a focused loop:
 
-1. Open the menu bar app.
+1. Open the app from the Dock or menu bar shortcut.
 2. Browse a compact grid of wallpapers matched to the current Mac display.
 3. Preview a wallpaper.
 4. Set it as the desktop wallpaper.
@@ -38,7 +38,7 @@ xcodegen generate
 ## Current Scope
 
 - macOS only.
-- Menu bar first.
+- Dock app with a menu bar shortcut.
 - SwiftUI + AppKit.
 - wallhaven API integration.
 - Automatic display-aware wallpaper matching.

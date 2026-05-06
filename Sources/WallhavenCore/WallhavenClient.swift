@@ -1,7 +1,7 @@
 import Foundation
 
 public protocol WallhavenFetching: Sendable {
-    func search(_ request: WallpaperSearchRequest) async throws -> WallhavenSearchResponse
+    func search(_ request: WallpaperSearchRequest, apiKey: String?) async throws -> WallhavenSearchResponse
 }
 
 public final class WallhavenClient: WallhavenFetching {
@@ -15,7 +15,11 @@ public final class WallhavenClient: WallhavenFetching {
         decoder = JSONDecoder()
     }
 
-    public func search(_ request: WallpaperSearchRequest) async throws -> WallhavenSearchResponse {
+    public func search(
+        _ request: WallpaperSearchRequest,
+        apiKey: String? = nil
+    ) async throws -> WallhavenSearchResponse {
+        let apiKey = apiKey ?? self.apiKey
         let (data, response) = try await session.data(from: request.url(apiKey: apiKey))
 
         guard let httpResponse = response as? HTTPURLResponse else {

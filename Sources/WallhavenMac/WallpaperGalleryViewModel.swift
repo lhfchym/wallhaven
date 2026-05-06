@@ -14,11 +14,13 @@ final class WallpaperGalleryViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var successMessage: String?
     @Published private(set) var meta: WallhavenMeta?
+    @Published private(set) var preferences = WallhavenUserPreferences()
 
     private let client: WallhavenFetching
     private let fileStore: WallpaperFileStoring
     private let wallpaperSetter: DesktopWallpaperSetting
     private let historyStore: WallpaperHistoryStoring
+    private let preferencesStore: WallhavenUserPreferencesStoring
     private var currentPage = 1
     private var currentSeed: String?
 
@@ -27,12 +29,14 @@ final class WallpaperGalleryViewModel: ObservableObject {
         fileStore: WallpaperFileStoring = WallpaperFileStore(),
         wallpaperSetter: DesktopWallpaperSetting = DesktopWallpaperSetter(),
         historyStore: WallpaperHistoryStoring = WallpaperHistoryStore(),
+        preferencesStore: WallhavenUserPreferencesStoring = WallhavenUserPreferencesStore(),
         display: DisplayProfile = DisplayProfileProvider.current()
     ) {
         self.client = client
         self.fileStore = fileStore
         self.wallpaperSetter = wallpaperSetter
         self.historyStore = historyStore
+        self.preferencesStore = preferencesStore
         self.display = display
     }
 
@@ -57,6 +61,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
         guard wallpapers.isEmpty, !isLoading else { return }
 
         Task {
+            preferences = await preferencesStore.load()
             await load(reset: true)
         }
     }
@@ -70,6 +75,28 @@ final class WallpaperGalleryViewModel: ObservableObject {
     func submitSearch() {
         Task {
             await load(reset: true)
+        }
+    }
+
+    func updateCategory(_ category: WallhavenCategoryPreset) {
+        preferences.categories = category
+        savePreferencesAndReload()
+    }
+
+    func updatePurity(_ purity: WallhavenPurityPreset) {
+        preferences.purity = purity
+        savePreferencesAndReload()
+    }
+
+    func updateSorting(_ sorting: WallhavenSorting) {
+        preferences.sorting = sorting
+        savePreferencesAndReload()
+    }
+
+    func updateAPIKey(_ apiKey: String) {
+        preferences.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            await preferencesStore.save(preferences)
         }
     }
 
@@ -117,14 +144,19 @@ final class WallpaperGalleryViewModel: ObservableObject {
         }
 
         let request = WallpaperSearchRequest(
-            preferences: WallpaperSearchPreferences(query: query.trimmingCharacters(in: .whitespacesAndNewlines)),
+            preferences: WallpaperSearchPreferences(
+                query: query.trimmingCharacters(in: .whitespacesAndNewlines),
+                categories: preferences.categories.categories,
+                purity: preferences.purity.purity,
+                sorting: preferences.sorting
+            ),
             display: display,
             page: currentPage,
             seed: currentSeed
         )
 
         do {
-            let response = try await client.search(request)
+            let response = try await client.search(request, apiKey: preferences.apiKey)
             let visibleWallpapers = await visibleWallpapers(from: response.data)
             meta = response.meta
             currentSeed = response.meta.seed
@@ -196,6 +228,13 @@ final class WallpaperGalleryViewModel: ObservableObject {
         let recentIDs = await historyStore.recentWallpaperIDs()
         let filtered = candidates.filter { !recentIDs.contains($0.id) }
         return filtered.isEmpty ? candidates : filtered
+    }
+
+    private func savePreferencesAndReload() {
+        Task {
+            await preferencesStore.save(preferences)
+            await load(reset: true)
+        }
     }
 
     private func readableMessage(for error: Error) -> String {
