@@ -62,18 +62,21 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
         Task {
             preferences = await preferencesStore.load()
+            query = preferences.query
             await load(reset: true)
         }
     }
 
     func refresh() {
         Task {
+            await saveCurrentPreferences()
             await load(reset: true)
         }
     }
 
     func submitSearch() {
         Task {
+            await saveCurrentPreferences()
             await load(reset: true)
         }
     }
@@ -112,6 +115,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
         selectedWallpaper = wallpaper
         downloadedWallpaperURL = nil
         successMessage = nil
+        updateCachedDownloadStatus(for: wallpaper)
     }
 
     func downloadSelectedWallpaper() {
@@ -157,21 +161,25 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
         do {
             let response = try await client.search(request, apiKey: preferences.apiKey)
-            let visibleWallpapers = await visibleWallpapers(from: response.data)
+            let displayWallpapers = await prioritizedWallpapers(from: response.data)
             meta = response.meta
             currentSeed = response.meta.seed
 
             if reset {
-                wallpapers = visibleWallpapers
-                selectedWallpaper = visibleWallpapers.first
-                downloadedWallpaperURL = nil
+                wallpapers = displayWallpapers
+                selectedWallpaper = displayWallpapers.first
+                if let selectedWallpaper {
+                    downloadedWallpaperURL = await fileStore.cachedURL(for: selectedWallpaper)
+                } else {
+                    downloadedWallpaperURL = nil
+                }
             } else {
-                wallpapers.append(contentsOf: visibleWallpapers.filter { candidate in
+                wallpapers.append(contentsOf: displayWallpapers.filter { candidate in
                     !wallpapers.contains(where: { $0.id == candidate.id })
                 })
             }
 
-            await historyStore.recordDisplayed(visibleWallpapers)
+            await historyStore.recordDisplayed(displayWallpapers)
         } catch {
             if !reset {
                 currentPage = max(currentPage - 1, 1)
@@ -224,16 +232,32 @@ final class WallpaperGalleryViewModel: ObservableObject {
         isSettingWallpaper = false
     }
 
-    private func visibleWallpapers(from candidates: [WallhavenWallpaper]) async -> [WallhavenWallpaper] {
+    private func prioritizedWallpapers(from candidates: [WallhavenWallpaper]) async -> [WallhavenWallpaper] {
         let recentIDs = await historyStore.recentWallpaperIDs()
-        let filtered = candidates.filter { !recentIDs.contains($0.id) }
-        return filtered.isEmpty ? candidates : filtered
+        let freshWallpapers = candidates.filter { !recentIDs.contains($0.id) }
+        let recentWallpapers = candidates.filter { recentIDs.contains($0.id) }
+        return freshWallpapers + recentWallpapers
     }
 
     private func savePreferencesAndReload() {
         Task {
-            await preferencesStore.save(preferences)
+            await saveCurrentPreferences()
             await load(reset: true)
+        }
+    }
+
+    private func saveCurrentPreferences() async {
+        preferences.query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        await preferencesStore.save(preferences)
+    }
+
+    private func updateCachedDownloadStatus(for wallpaper: WallhavenWallpaper) {
+        Task {
+            let cachedURL = await fileStore.cachedURL(for: wallpaper)
+
+            guard selectedWallpaper?.id == wallpaper.id else { return }
+
+            downloadedWallpaperURL = cachedURL
         }
     }
 

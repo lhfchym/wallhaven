@@ -19,6 +19,13 @@ swift test
 swift run WallhavenMac
 ```
 
+To refresh the Launchpad/Xcode `.app` entry, regenerate and build the Xcode project:
+
+```sh
+xcodegen generate
+xcodebuild -project WallhavenMac.xcodeproj -scheme WallhavenMac -configuration Debug build
+```
+
 Useful local tools:
 
 ```sh

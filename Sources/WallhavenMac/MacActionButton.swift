@@ -1,7 +1,6 @@
-import AppKit
 import SwiftUI
 
-struct MacActionButton: NSViewRepresentable {
+struct MacActionButton: View {
     let title: String?
     let systemImageName: String?
     let isPrimary: Bool
@@ -33,47 +32,25 @@ struct MacActionButton: NSViewRepresentable {
         self.action = action
     }
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(action: action)
-    }
-
-    func makeNSView(context: Context) -> NSButton {
-        let button = NSButton()
-        button.target = context.coordinator
-        button.action = #selector(Coordinator.performAction)
-        button.bezelStyle = .rounded
-        button.controlSize = .large
-        button.isBordered = true
-        button.refusesFirstResponder = true
-        return button
-    }
-
-    func updateNSView(_ button: NSButton, context: Context) {
-        context.coordinator.action = action
-
-        if let title {
-            button.title = title
-            button.image = nil
-            button.imagePosition = .noImage
-        } else if let systemImageName {
-            button.title = ""
-            button.image = NSImage(systemSymbolName: systemImageName, accessibilityDescription: nil)
-            button.imagePosition = .imageOnly
-        }
-
-        button.isEnabled = !isDisabled
-        button.contentTintColor = isPrimary ? .controlAccentColor : nil
-    }
-
-    final class Coordinator: NSObject {
-        var action: () -> Void
-
-        init(action: @escaping () -> Void) {
-            self.action = action
-        }
-
-        @objc func performAction() {
+    var body: some View {
+        Button {
+            guard !isDisabled else { return }
             action()
+        } label: {
+            Group {
+                if let title {
+                    Text(title)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let systemImageName {
+                    Image(systemName: systemImageName)
+                        .font(.system(size: 15, weight: .medium))
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+            }
         }
+        .buttonStyle(.bordered)
+        .tint(isPrimary ? .accentColor : .primary)
+        .controlSize(.large)
+        .disabled(isDisabled)
     }
 }

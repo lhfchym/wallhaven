@@ -3,6 +3,7 @@ import WallhavenCore
 
 protocol WallpaperFileStoring: Sendable {
     func localURL(for wallpaper: WallhavenWallpaper) async -> URL
+    func cachedURL(for wallpaper: WallhavenWallpaper) async -> URL?
     func downloadedURL(for wallpaper: WallhavenWallpaper) async throws -> URL
 }
 
@@ -30,6 +31,11 @@ actor WallpaperFileStore: WallpaperFileStoring {
 
     func localURL(for wallpaper: WallhavenWallpaper) -> URL {
         cacheDirectory.appendingPathComponent(fileName(for: wallpaper))
+    }
+
+    func cachedURL(for wallpaper: WallhavenWallpaper) -> URL? {
+        let destinationURL = localURL(for: wallpaper)
+        return fileManager.fileExists(atPath: destinationURL.path) ? destinationURL : nil
     }
 
     func downloadedURL(for wallpaper: WallhavenWallpaper) async throws -> URL {

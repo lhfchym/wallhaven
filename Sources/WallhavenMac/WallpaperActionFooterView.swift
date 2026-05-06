@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WallhavenCore
 
@@ -26,18 +27,24 @@ struct WallpaperActionFooterView: View {
                 Text("Open")
             }
 
-            WallhavenActionButton(isDisabled: wallpaper == nil || isDownloading, action: onDownload) {
+            WallhavenActionButton(isDisabled: wallpaper == nil || isDownloading) {
+                if let downloadedWallpaperURL {
+                    NSWorkspace.shared.activateFileViewerSelecting([downloadedWallpaperURL])
+                } else {
+                    onDownload()
+                }
+            } label: {
                 if isDownloading {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Text(downloadedWallpaperURL == nil ? "Download" : "Downloaded")
+                    Text(downloadedWallpaperURL == nil ? "Download" : "Reveal")
                 }
             }
 
             WallhavenActionButton(
                 role: .primary,
-                isDisabled: wallpaper == nil || isSettingWallpaper,
+                isDisabled: wallpaper == nil || isDownloading || isSettingWallpaper,
                 action: onSetWallpaper
             ) {
                 if isSettingWallpaper {

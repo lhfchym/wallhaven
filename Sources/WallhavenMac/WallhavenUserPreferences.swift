@@ -3,17 +3,20 @@ import WallhavenCore
 
 struct WallhavenUserPreferences: Equatable, Sendable {
     var apiKey: String
+    var query: String
     var categories: WallhavenCategoryPreset
     var purity: WallhavenPurityPreset
     var sorting: WallhavenSorting
 
     init(
         apiKey: String = "",
+        query: String = "",
         categories: WallhavenCategoryPreset = .general,
         purity: WallhavenPurityPreset = .sfw,
         sorting: WallhavenSorting = .random
     ) {
         self.apiKey = apiKey
+        self.query = query
         self.categories = categories
         self.purity = purity
         self.sorting = sorting
@@ -92,6 +95,7 @@ protocol WallhavenUserPreferencesStoring: Sendable {
 
 actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
     private enum Keys {
+        static let query = "wallhaven.query"
         static let categories = "wallhaven.categories"
         static let purity = "wallhaven.purity"
         static let sorting = "wallhaven.sorting"
@@ -109,6 +113,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
     }
 
     func load() async -> WallhavenUserPreferences {
+        let query = defaults.string(forKey: Keys.query) ?? ""
         let categories = defaults.string(forKey: Keys.categories)
             .flatMap(WallhavenCategoryPreset.init(rawValue:)) ?? .general
         let purity = defaults.string(forKey: Keys.purity)
@@ -118,6 +123,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
 
         return WallhavenUserPreferences(
             apiKey: apiKeyStore.loadAPIKey(),
+            query: query,
             categories: categories,
             purity: purity,
             sorting: sorting
@@ -126,6 +132,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
 
     func save(_ preferences: WallhavenUserPreferences) async {
         apiKeyStore.saveAPIKey(preferences.apiKey)
+        defaults.set(preferences.query, forKey: Keys.query)
         defaults.set(preferences.categories.rawValue, forKey: Keys.categories)
         defaults.set(preferences.purity.rawValue, forKey: Keys.purity)
         defaults.set(preferences.sorting.rawValue, forKey: Keys.sorting)

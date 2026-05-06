@@ -19,20 +19,23 @@ struct WallhavenActionButton<Label: View>: View {
     }
 
     var body: some View {
-        label()
-            .font(.system(size: 14, weight: .medium))
-            .lineLimit(1)
-            .frame(minWidth: role.minimumWidth, minHeight: 30)
-            .padding(.horizontal, 12)
-            .foregroundStyle(role.foregroundColor(isDisabled: isDisabled))
-            .background(role.backgroundColor(isDisabled: isDisabled), in: RoundedRectangle(cornerRadius: 7))
-            .contentShape(RoundedRectangle(cornerRadius: 7))
-            .opacity(isDisabled ? 0.58 : 1)
-            .onTapGesture {
-                guard !isDisabled else { return }
-                action()
-            }
-            .accessibilityAddTraits(.isButton)
+        Button {
+            guard !isDisabled else { return }
+            action()
+        } label: {
+            label()
+                .font(.system(size: 14, weight: .medium))
+                .lineLimit(1)
+                .frame(minWidth: role.minimumWidth, minHeight: 30)
+                .padding(.horizontal, 12)
+                .foregroundStyle(role.foregroundColor(isDisabled: isDisabled))
+                .background(role.backgroundColor(isDisabled: isDisabled), in: RoundedRectangle(cornerRadius: 7))
+                .contentShape(RoundedRectangle(cornerRadius: 7))
+                .opacity(isDisabled ? 0.58 : 1)
+        }
+        .buttonStyle(.plain)
+        .disabled(isDisabled)
+        .accessibilityAddTraits(.isButton)
     }
 }
 

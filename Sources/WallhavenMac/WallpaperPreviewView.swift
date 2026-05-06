@@ -32,8 +32,10 @@ struct WallpaperPreviewView: View {
                             .fill(.quaternary)
                     }
                 }
-                .frame(height: 150)
+                .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .allowsHitTesting(false)
                 .overlay(alignment: .bottomLeading) {
                     Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
                         .font(.caption2)
