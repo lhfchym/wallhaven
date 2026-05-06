@@ -5,36 +5,92 @@ import WallhavenCore
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
-    private let popover = NSPopover()
+    private var window: NSWindow?
+    private var isTerminating = false
 
     func applicationDidFinishLaunching(_: Notification) {
-        NSApp.setActivationPolicy(.accessory)
-        configurePopover()
+        NSApp.setActivationPolicy(.regular)
+        configureWindow()
         configureStatusItem()
+        showWindow()
     }
 
-    private func configurePopover() {
-        popover.behavior = .transient
-        popover.contentSize = NSSize(width: 520, height: 620)
-        popover.contentViewController = NSHostingController(rootView: WallpaperGalleryView())
+    func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
+        guard !isTerminating else { return false }
+
+        showWindow()
+        return true
+    }
+
+    func applicationShouldTerminate(_: NSApplication) -> NSApplication.TerminateReply {
+        isTerminating = true
+        return .terminateNow
+    }
+
+    func applicationWillTerminate(_: Notification) {
+        tearDownStatusItem()
+        tearDownWindow()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
+        false
+    }
+
+    private func configureWindow() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 720, height: 860),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.title = "WallhavenMac"
+        window.contentViewController = NSHostingController(rootView: WallpaperGalleryView())
+        window.center()
+        window.setFrameAutosaveName("WallhavenMacMainWindow")
+        self.window = window
     }
 
     private func configureStatusItem() {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        item.button?.title = "WH"
-        item.button?.action = #selector(togglePopover)
+        item.button?.image = NSImage(systemSymbolName: "photo.on.rectangle", accessibilityDescription: "WallhavenMac")
+        item.button?.image?.isTemplate = true
+        item.button?.action = #selector(toggleWindow)
         item.button?.target = self
         statusItem = item
     }
 
-    @objc private func togglePopover() {
-        guard let button = statusItem?.button else { return }
+    @objc private func toggleWindow() {
+        guard !isTerminating else { return }
 
-        if popover.isShown {
-            popover.performClose(nil)
+        if window?.isVisible == true, NSApp.isActive {
+            window?.orderOut(nil)
         } else {
-            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            showWindow()
         }
+    }
+
+    private func showWindow() {
+        guard !isTerminating, let window else { return }
+
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate()
+    }
+
+    private func tearDownStatusItem() {
+        statusItem?.button?.target = nil
+        statusItem?.button?.action = nil
+
+        if let statusItem {
+            NSStatusBar.system.removeStatusItem(statusItem)
+        }
+
+        statusItem = nil
+    }
+
+    private func tearDownWindow() {
+        window?.orderOut(nil)
+        window?.contentViewController = nil
+        window = nil
     }
 }
 

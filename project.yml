@@ -28,5 +28,4 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: dev.local.wallhavenmac
         GENERATE_INFOPLIST_FILE: YES
-        INFOPLIST_KEY_LSUIElement: YES
         SWIFT_VERSION: "6.0"

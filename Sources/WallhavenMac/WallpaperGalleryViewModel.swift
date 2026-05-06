@@ -8,18 +8,31 @@ final class WallpaperGalleryViewModel: ObservableObject {
     @Published private(set) var wallpapers: [WallhavenWallpaper] = []
     @Published var selectedWallpaper: WallhavenWallpaper?
     @Published private(set) var isLoading = false
+    @Published private(set) var isDownloading = false
+    @Published private(set) var isSettingWallpaper = false
+    @Published private(set) var downloadedWallpaperURL: URL?
     @Published private(set) var errorMessage: String?
+    @Published private(set) var successMessage: String?
     @Published private(set) var meta: WallhavenMeta?
 
     private let client: WallhavenFetching
+    private let fileStore: WallpaperFileStoring
+    private let wallpaperSetter: DesktopWallpaperSetting
+    private let historyStore: WallpaperHistoryStoring
     private var currentPage = 1
     private var currentSeed: String?
 
     init(
         client: WallhavenFetching = WallhavenClient(),
+        fileStore: WallpaperFileStoring = WallpaperFileStore(),
+        wallpaperSetter: DesktopWallpaperSetting = DesktopWallpaperSetter(),
+        historyStore: WallpaperHistoryStoring = WallpaperHistoryStore(),
         display: DisplayProfile = DisplayProfileProvider.current()
     ) {
         self.client = client
+        self.fileStore = fileStore
+        self.wallpaperSetter = wallpaperSetter
+        self.historyStore = historyStore
         self.display = display
     }
 
@@ -70,11 +83,30 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
     func select(_ wallpaper: WallhavenWallpaper) {
         selectedWallpaper = wallpaper
+        downloadedWallpaperURL = nil
+        successMessage = nil
+    }
+
+    func downloadSelectedWallpaper() {
+        guard let selectedWallpaper, !isDownloading else { return }
+
+        Task {
+            await download(wallpaper: selectedWallpaper)
+        }
+    }
+
+    func setSelectedWallpaper() {
+        guard let selectedWallpaper, !isSettingWallpaper else { return }
+
+        Task {
+            await setWallpaper(selectedWallpaper)
+        }
     }
 
     private func load(reset: Bool) async {
         isLoading = true
         errorMessage = nil
+        successMessage = nil
 
         if reset {
             refreshDisplay()
@@ -93,17 +125,21 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
         do {
             let response = try await client.search(request)
+            let visibleWallpapers = await visibleWallpapers(from: response.data)
             meta = response.meta
             currentSeed = response.meta.seed
 
             if reset {
-                wallpapers = response.data
-                selectedWallpaper = response.data.first
+                wallpapers = visibleWallpapers
+                selectedWallpaper = visibleWallpapers.first
+                downloadedWallpaperURL = nil
             } else {
-                wallpapers.append(contentsOf: response.data.filter { candidate in
+                wallpapers.append(contentsOf: visibleWallpapers.filter { candidate in
                     !wallpapers.contains(where: { $0.id == candidate.id })
                 })
             }
+
+            await historyStore.recordDisplayed(visibleWallpapers)
         } catch {
             if !reset {
                 currentPage = max(currentPage - 1, 1)
@@ -114,6 +150,54 @@ final class WallpaperGalleryViewModel: ObservableObject {
         isLoading = false
     }
 
+    private func download(wallpaper: WallhavenWallpaper) async {
+        isDownloading = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            downloadedWallpaperURL = try await fileStore.downloadedURL(for: wallpaper)
+            successMessage = "Downloaded #\(wallpaper.id)."
+        } catch {
+            errorMessage = readableMessage(for: error)
+        }
+
+        isDownloading = false
+    }
+
+    private func setWallpaper(_ wallpaper: WallhavenWallpaper) async {
+        isSettingWallpaper = true
+        errorMessage = nil
+        successMessage = nil
+
+        do {
+            let imageURL: URL
+            if let downloadedWallpaperURL {
+                imageURL = downloadedWallpaperURL
+            } else {
+                isDownloading = true
+                imageURL = try await fileStore.downloadedURL(for: wallpaper)
+                downloadedWallpaperURL = imageURL
+                isDownloading = false
+            }
+
+            try wallpaperSetter.setDesktopWallpaper(at: imageURL)
+            await historyStore.recordSet(wallpaper)
+            successMessage = "Set #\(wallpaper.id) as wallpaper."
+        } catch {
+            isDownloading = false
+            errorMessage = readableMessage(for: error)
+        }
+
+        isSettingWallpaper = false
+    }
+
+    private func visibleWallpapers(from candidates: [WallhavenWallpaper]) async -> [WallhavenWallpaper] {
+        let recentIDs = await historyStore.recentWallpaperIDs()
+        let filtered = candidates.filter { !recentIDs.contains($0.id) }
+        return filtered.isEmpty ? candidates : filtered
+    }
+
     private func readableMessage(for error: Error) -> String {
         if let clientError = error as? WallhavenClientError {
             switch clientError {
@@ -121,6 +205,15 @@ final class WallpaperGalleryViewModel: ObservableObject {
                 return "Unexpected wallhaven response."
             case let .unexpectedStatus(statusCode):
                 return "wallhaven returned HTTP \(statusCode)."
+            }
+        }
+
+        if let fileStoreError = error as? WallpaperFileStoreError {
+            switch fileStoreError {
+            case .unexpectedResponse:
+                return "Unexpected image download response."
+            case let .unexpectedStatus(statusCode):
+                return "Image download returned HTTP \(statusCode)."
             }
         }
 
