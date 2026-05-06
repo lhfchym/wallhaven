@@ -37,8 +37,10 @@ struct WallpaperGalleryView: View {
         .sheet(isPresented: $isShowingSettings) {
             WallhavenSettingsView(
                 apiKey: viewModel.preferences.apiKey,
-                onSave: { apiKey in
-                    viewModel.updateAPIKey(apiKey)
+                downloadDirectoryPath: viewModel.preferences.downloadDirectoryPath,
+                defaultDownloadDirectoryURL: viewModel.downloadDirectoryURL,
+                onSave: { apiKey, downloadDirectoryPath in
+                    viewModel.updateSettings(apiKey: apiKey, downloadDirectoryPath: downloadDirectoryPath)
                     isShowingSettings = false
                 },
                 onCancel: {
@@ -69,6 +71,12 @@ struct WallpaperGalleryView: View {
                 viewModel.refresh()
             }
             .frame(width: 120, height: 34)
+
+            MacActionButton(systemImageName: "folder") {
+                viewModel.openDownloadDirectory()
+            }
+            .frame(width: 44, height: 34)
+            .help("Open download folder")
 
             MacActionButton(systemImageName: "gearshape") {
                 isShowingSettings = true

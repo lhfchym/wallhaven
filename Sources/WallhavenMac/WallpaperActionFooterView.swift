@@ -41,6 +41,9 @@ struct WallpaperActionFooterView: View {
                     Text(downloadedWallpaperURL == nil ? "Download" : "Reveal")
                 }
             }
+            .help(downloadedWallpaperURL == nil
+                ? "Download the original image"
+                : "Reveal the downloaded image in Finder")
 
             WallhavenActionButton(
                 role: .primary,

@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import WallhavenCore
 
@@ -15,6 +16,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
     @Published private(set) var successMessage: String?
     @Published private(set) var meta: WallhavenMeta?
     @Published private(set) var preferences = WallhavenUserPreferences()
+    @Published private(set) var downloadDirectoryURL: URL?
 
     private let client: WallhavenFetching
     private let fileStore: WallpaperFileStoring
@@ -63,6 +65,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
         Task {
             preferences = await preferencesStore.load()
             query = preferences.query
+            await configureDownloadDirectory()
             await load(reset: true)
         }
     }
@@ -100,6 +103,37 @@ final class WallpaperGalleryViewModel: ObservableObject {
         preferences.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         Task {
             await preferencesStore.save(preferences)
+        }
+    }
+
+    func updateSettings(apiKey: String, downloadDirectoryPath: String?) {
+        preferences.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
+        preferences.downloadDirectoryPath = downloadDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        Task {
+            await saveCurrentPreferences()
+            await configureDownloadDirectory()
+
+            if let selectedWallpaper {
+                downloadedWallpaperURL = await fileStore.cachedURL(for: selectedWallpaper)
+            } else {
+                downloadedWallpaperURL = nil
+            }
+        }
+    }
+
+    func openDownloadDirectory() {
+        Task {
+            do {
+                let directoryURL = try await fileStore.ensureDownloadDirectory()
+                downloadDirectoryURL = directoryURL
+                NSWorkspace.shared.open(directoryURL)
+                successMessage = "Opened download folder."
+                errorMessage = nil
+            } catch {
+                successMessage = nil
+                errorMessage = "Open folder failed: \(readableMessage(for: error))"
+            }
         }
     }
 
@@ -197,9 +231,13 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
         do {
             downloadedWallpaperURL = try await fileStore.downloadedURL(for: wallpaper)
-            successMessage = "Downloaded #\(wallpaper.id)."
+            if let downloadedWallpaperURL {
+                successMessage = "Download succeeded: \(downloadedWallpaperURL.lastPathComponent)"
+            } else {
+                successMessage = "Download succeeded: #\(wallpaper.id)."
+            }
         } catch {
-            errorMessage = readableMessage(for: error)
+            errorMessage = "Download failed: \(readableMessage(for: error))"
         }
 
         isDownloading = false
@@ -250,8 +288,15 @@ final class WallpaperGalleryViewModel: ObservableObject {
         preferences.query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         await preferencesStore.save(preferences)
     }
+}
 
-    private func updateCachedDownloadStatus(for wallpaper: WallhavenWallpaper) {
+private extension WallpaperGalleryViewModel {
+    func configureDownloadDirectory() async {
+        await fileStore.setDownloadDirectory(preferences.downloadDirectoryURL)
+        downloadDirectoryURL = await fileStore.downloadDirectory()
+    }
+
+    func updateCachedDownloadStatus(for wallpaper: WallhavenWallpaper) {
         Task {
             let cachedURL = await fileStore.cachedURL(for: wallpaper)
 
@@ -261,7 +306,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
         }
     }
 
-    private func readableMessage(for error: Error) -> String {
+    func readableMessage(for error: Error) -> String {
         if let clientError = error as? WallhavenClientError {
             switch clientError {
             case .unexpectedResponse:

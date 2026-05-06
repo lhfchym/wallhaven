@@ -2,6 +2,9 @@ import Foundation
 import WallhavenCore
 
 protocol WallpaperFileStoring: Sendable {
+    func downloadDirectory() async -> URL
+    func setDownloadDirectory(_ directoryURL: URL?) async
+    func ensureDownloadDirectory() async throws -> URL
     func localURL(for wallpaper: WallhavenWallpaper) async -> URL
     func cachedURL(for wallpaper: WallhavenWallpaper) async -> URL?
     func downloadedURL(for wallpaper: WallhavenWallpaper) async throws -> URL
@@ -10,7 +13,8 @@ protocol WallpaperFileStoring: Sendable {
 actor WallpaperFileStore: WallpaperFileStoring {
     private let fileManager: FileManager
     private let session: URLSession
-    private let cacheDirectory: URL
+    private let defaultDownloadDirectory: URL
+    private var customDownloadDirectory: URL?
 
     init(
         fileManager: FileManager = .default,
@@ -20,17 +24,28 @@ actor WallpaperFileStore: WallpaperFileStoring {
         self.fileManager = fileManager
         self.session = session
 
-        if let cacheDirectory {
-            self.cacheDirectory = cacheDirectory
-        } else {
-            self.cacheDirectory = fileManager
-                .urls(for: .picturesDirectory, in: .userDomainMask)[0]
-                .appendingPathComponent("WallhavenMac", isDirectory: true)
-        }
+        defaultDownloadDirectory = fileManager
+            .urls(for: .picturesDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("WallhavenMac", isDirectory: true)
+        customDownloadDirectory = cacheDirectory
+    }
+
+    func downloadDirectory() -> URL {
+        customDownloadDirectory ?? defaultDownloadDirectory
+    }
+
+    func setDownloadDirectory(_ directoryURL: URL?) {
+        customDownloadDirectory = directoryURL
+    }
+
+    func ensureDownloadDirectory() throws -> URL {
+        let directoryURL = downloadDirectory()
+        try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        return directoryURL
     }
 
     func localURL(for wallpaper: WallhavenWallpaper) -> URL {
-        cacheDirectory.appendingPathComponent(fileName(for: wallpaper))
+        downloadDirectory().appendingPathComponent(fileName(for: wallpaper))
     }
 
     func cachedURL(for wallpaper: WallhavenWallpaper) -> URL? {
@@ -45,7 +60,7 @@ actor WallpaperFileStore: WallpaperFileStoring {
             return destinationURL
         }
 
-        try fileManager.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        _ = try ensureDownloadDirectory()
 
         let (temporaryURL, response) = try await session.download(from: wallpaper.path)
 

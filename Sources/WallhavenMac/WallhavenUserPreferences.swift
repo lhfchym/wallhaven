@@ -4,6 +4,7 @@ import WallhavenCore
 struct WallhavenUserPreferences: Equatable, Sendable {
     var apiKey: String
     var query: String
+    var downloadDirectoryPath: String?
     var categories: WallhavenCategoryPreset
     var purity: WallhavenPurityPreset
     var sorting: WallhavenSorting
@@ -11,15 +12,22 @@ struct WallhavenUserPreferences: Equatable, Sendable {
     init(
         apiKey: String = "",
         query: String = "",
+        downloadDirectoryPath: String? = nil,
         categories: WallhavenCategoryPreset = .general,
         purity: WallhavenPurityPreset = .sfw,
         sorting: WallhavenSorting = .random
     ) {
         self.apiKey = apiKey
         self.query = query
+        self.downloadDirectoryPath = downloadDirectoryPath
         self.categories = categories
         self.purity = purity
         self.sorting = sorting
+    }
+
+    var downloadDirectoryURL: URL? {
+        guard let downloadDirectoryPath, !downloadDirectoryPath.isEmpty else { return nil }
+        return URL(fileURLWithPath: downloadDirectoryPath, isDirectory: true)
     }
 }
 
@@ -96,6 +104,7 @@ protocol WallhavenUserPreferencesStoring: Sendable {
 actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
     private enum Keys {
         static let query = "wallhaven.query"
+        static let downloadDirectoryPath = "wallhaven.downloadDirectoryPath"
         static let categories = "wallhaven.categories"
         static let purity = "wallhaven.purity"
         static let sorting = "wallhaven.sorting"
@@ -114,6 +123,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
 
     func load() async -> WallhavenUserPreferences {
         let query = defaults.string(forKey: Keys.query) ?? ""
+        let downloadDirectoryPath = defaults.string(forKey: Keys.downloadDirectoryPath)
         let categories = defaults.string(forKey: Keys.categories)
             .flatMap(WallhavenCategoryPreset.init(rawValue:)) ?? .general
         let purity = defaults.string(forKey: Keys.purity)
@@ -124,6 +134,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         return WallhavenUserPreferences(
             apiKey: apiKeyStore.loadAPIKey(),
             query: query,
+            downloadDirectoryPath: downloadDirectoryPath,
             categories: categories,
             purity: purity,
             sorting: sorting
@@ -133,6 +144,11 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
     func save(_ preferences: WallhavenUserPreferences) async {
         apiKeyStore.saveAPIKey(preferences.apiKey)
         defaults.set(preferences.query, forKey: Keys.query)
+        if let downloadDirectoryPath = preferences.downloadDirectoryPath, !downloadDirectoryPath.isEmpty {
+            defaults.set(downloadDirectoryPath, forKey: Keys.downloadDirectoryPath)
+        } else {
+            defaults.removeObject(forKey: Keys.downloadDirectoryPath)
+        }
         defaults.set(preferences.categories.rawValue, forKey: Keys.categories)
         defaults.set(preferences.purity.rawValue, forKey: Keys.purity)
         defaults.set(preferences.sorting.rawValue, forKey: Keys.sorting)
