@@ -59,6 +59,7 @@ public struct WallhavenMeta: Decodable, Equatable, Sendable {
     public let perPage: Int
     public let total: Int
     public let query: String?
+    public let seed: String?
 
     private enum CodingKeys: String, CodingKey {
         case currentPage = "current_page"
@@ -66,5 +67,17 @@ public struct WallhavenMeta: Decodable, Equatable, Sendable {
         case perPage = "per_page"
         case total
         case query
+        case seed
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        currentPage = try container.decode(Int.self, forKey: .currentPage)
+        lastPage = try container.decode(Int.self, forKey: .lastPage)
+        perPage = try container.decode(Int.self, forKey: .perPage)
+        total = try container.decode(Int.self, forKey: .total)
+        query = try? container.decodeIfPresent(String.self, forKey: .query)
+        seed = try container.decodeIfPresent(String.self, forKey: .seed)
     }
 }

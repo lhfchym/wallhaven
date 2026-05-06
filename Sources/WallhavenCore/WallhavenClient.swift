@@ -18,8 +18,12 @@ public final class WallhavenClient: WallhavenFetching {
     public func search(_ request: WallpaperSearchRequest) async throws -> WallhavenSearchResponse {
         let (data, response) = try await session.data(from: request.url(apiKey: apiKey))
 
-        guard let httpResponse = response as? HTTPURLResponse, 200 ..< 300 ~= httpResponse.statusCode else {
+        guard let httpResponse = response as? HTTPURLResponse else {
             throw WallhavenClientError.unexpectedResponse
+        }
+
+        guard 200 ..< 300 ~= httpResponse.statusCode else {
+            throw WallhavenClientError.unexpectedStatus(httpResponse.statusCode)
         }
 
         return try decoder.decode(WallhavenSearchResponse.self, from: data)
@@ -28,4 +32,5 @@ public final class WallhavenClient: WallhavenFetching {
 
 public enum WallhavenClientError: Error, Equatable {
     case unexpectedResponse
+    case unexpectedStatus(Int)
 }

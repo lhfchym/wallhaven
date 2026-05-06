@@ -4,15 +4,18 @@ public struct WallpaperSearchRequest: Equatable, Sendable {
     public let preferences: WallpaperSearchPreferences
     public let display: DisplayProfile
     public let page: Int
+    public let seed: String?
 
     public init(
         preferences: WallpaperSearchPreferences,
         display: DisplayProfile,
-        page: Int = 1
+        page: Int = 1,
+        seed: String? = nil
     ) {
         self.preferences = preferences
         self.display = display
         self.page = page
+        self.seed = seed
     }
 
     public func url(apiKey: String? = nil) -> URL {
@@ -32,6 +35,10 @@ public struct WallpaperSearchRequest: Equatable, Sendable {
 
         if let apiKey, !apiKey.isEmpty {
             queryItems.append(URLQueryItem(name: "apikey", value: apiKey))
+        }
+
+        if let seed, !seed.isEmpty {
+            queryItems.append(URLQueryItem(name: "seed", value: seed))
         }
 
         components.queryItems = queryItems
