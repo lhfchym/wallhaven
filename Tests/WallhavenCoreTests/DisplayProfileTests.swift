@@ -54,3 +54,73 @@ import Testing
     #expect(response.meta.query == nil)
     #expect(response.meta.seed == "abc123")
 }
+
+@Test func searchResponseSkipsMalformedWallpaperItems() throws {
+    let data = Data(searchResponseWithMalformedWallpaperJSON.utf8)
+    let response = try JSONDecoder().decode(WallhavenSearchResponse.self, from: data)
+
+    #expect(response.data.map(\.id) == ["good"])
+    #expect(response.meta.total == 2)
+}
+
+private let searchResponseWithMalformedWallpaperJSON = """
+{
+  "data": [
+    {
+      "id": "bad-url",
+      "url": 42,
+      "short_url": "https://whvn.cc/bad",
+      "views": 1,
+      "favorites": 2,
+      "source": "",
+      "purity": "sfw",
+      "category": "general",
+      "dimension_x": 3000,
+      "dimension_y": 1943,
+      "resolution": "3000x1943",
+      "ratio": "1.54",
+      "file_size": 1024,
+      "file_type": "image/jpeg",
+      "created_at": "2026-05-06 00:00:00",
+      "colors": ["#ffffff"],
+      "path": "https://w.wallhaven.cc/full/ba/wallhaven-bad.jpg",
+      "thumbs": {
+        "large": "https://th.wallhaven.cc/lg/ba/bad.jpg",
+        "original": "https://th.wallhaven.cc/orig/ba/bad.jpg",
+        "small": "https://th.wallhaven.cc/small/ba/bad.jpg"
+      }
+    },
+    {
+      "id": "good",
+      "url": "https://wallhaven.cc/w/good",
+      "short_url": "https://whvn.cc/good",
+      "views": 1,
+      "favorites": 2,
+      "source": "",
+      "purity": "sfw",
+      "category": "general",
+      "dimension_x": 3000,
+      "dimension_y": 1943,
+      "resolution": "3000x1943",
+      "ratio": "1.54",
+      "file_size": 1024,
+      "file_type": "image/jpeg",
+      "created_at": "2026-05-06 00:00:00",
+      "colors": ["#ffffff"],
+      "path": "https://w.wallhaven.cc/full/go/wallhaven-good.jpg",
+      "thumbs": {
+        "large": "https://th.wallhaven.cc/lg/go/good.jpg",
+        "original": "https://th.wallhaven.cc/orig/go/good.jpg",
+        "small": "https://th.wallhaven.cc/small/go/good.jpg"
+      }
+    }
+  ],
+  "meta": {
+    "current_page": 1,
+    "last_page": 1,
+    "per_page": 24,
+    "total": 2,
+    "seed": "abc123"
+  }
+}
+"""

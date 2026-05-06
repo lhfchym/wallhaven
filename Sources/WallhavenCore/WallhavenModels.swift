@@ -3,6 +3,19 @@ import Foundation
 public struct WallhavenSearchResponse: Decodable, Equatable, Sendable {
     public let data: [WallhavenWallpaper]
     public let meta: WallhavenMeta
+
+    private enum CodingKeys: String, CodingKey {
+        case data
+        case meta
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        data = try container.decode([FailableDecodable<WallhavenWallpaper>].self, forKey: .data)
+            .compactMap(\.value)
+        meta = try container.decode(WallhavenMeta.self, forKey: .meta)
+    }
 }
 
 public struct WallhavenWallpaper: Decodable, Identifiable, Equatable, Sendable {
@@ -79,5 +92,13 @@ public struct WallhavenMeta: Decodable, Equatable, Sendable {
         total = try container.decode(Int.self, forKey: .total)
         query = try? container.decodeIfPresent(String.self, forKey: .query)
         seed = try container.decodeIfPresent(String.self, forKey: .seed)
+    }
+}
+
+private struct FailableDecodable<Value: Decodable>: Decodable {
+    let value: Value?
+
+    init(from decoder: Decoder) throws {
+        value = try? Value(from: decoder)
     }
 }
