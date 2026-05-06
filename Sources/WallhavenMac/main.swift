@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_: Notification) {
         NSApp.setActivationPolicy(.regular)
+        configureMainMenu()
         configureWindow()
         configureStatusItem()
         showWindow()
@@ -17,6 +18,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldHandleReopen(_: NSApplication, hasVisibleWindows _: Bool) -> Bool {
         guard !isTerminating else { return false }
+
+        if window == nil {
+            configureWindow()
+        }
 
         showWindow()
         return true
@@ -27,13 +32,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateNow
     }
 
-    func applicationWillTerminate(_: Notification) {
-        tearDownStatusItem()
-        tearDownWindow()
-    }
-
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
         false
+    }
+
+    private func configureMainMenu() {
+        let mainMenu = NSMenu()
+        let appMenuItem = NSMenuItem()
+        let appMenu = NSMenu()
+
+        appMenu.addItem(
+            withTitle: "Quit WallhavenMac",
+            action: #selector(NSApplication.terminate(_:)),
+            keyEquivalent: "q"
+        )
+
+        appMenuItem.submenu = appMenu
+        mainMenu.addItem(appMenuItem)
+        NSApp.mainMenu = mainMenu
     }
 
     private func configureWindow() {
@@ -44,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.title = "WallhavenMac"
+        window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: WallpaperGalleryView())
         window.center()
         window.setFrameAutosaveName("WallhavenMacMainWindow")
@@ -75,23 +92,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeKeyAndOrderFront(nil)
         window.orderFrontRegardless()
         NSApp.activate()
-    }
-
-    private func tearDownStatusItem() {
-        statusItem?.button?.target = nil
-        statusItem?.button?.action = nil
-
-        if let statusItem {
-            NSStatusBar.system.removeStatusItem(statusItem)
-        }
-
-        statusItem = nil
-    }
-
-    private func tearDownWindow() {
-        window?.orderOut(nil)
-        window?.contentViewController = nil
-        window = nil
     }
 }
 

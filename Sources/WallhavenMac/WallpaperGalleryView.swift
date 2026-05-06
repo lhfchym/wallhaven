@@ -61,25 +61,19 @@ struct WallpaperGalleryView: View {
 
             Spacer()
 
-            WallhavenActionButton(
-                role: .primary,
+            MacActionButton(
+                viewModel.isLoading ? "Loading..." : "Refresh",
+                isPrimary: true,
                 isDisabled: viewModel.isLoading
             ) {
                 viewModel.refresh()
-            } label: {
-                if viewModel.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                } else {
-                    Text("Refresh")
-                }
             }
+            .frame(width: 120, height: 34)
 
-            WallhavenActionButton(role: .icon) {
+            MacActionButton(systemImageName: "gearshape") {
                 isShowingSettings = true
-            } label: {
-                Image(systemName: "gearshape")
             }
+            .frame(width: 44, height: 34)
             .help("Settings")
         }
     }
@@ -92,11 +86,10 @@ struct WallpaperGalleryView: View {
                     viewModel.submitSearch()
                 }
 
-            WallhavenActionButton(isDisabled: viewModel.isLoading) {
+            MacActionButton("Search", isDisabled: viewModel.isLoading) {
                 viewModel.submitSearch()
-            } label: {
-                Text("Search")
             }
+            .frame(width: 82, height: 34)
         }
     }
 
