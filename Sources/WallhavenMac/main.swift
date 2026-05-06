@@ -73,6 +73,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !isTerminating, let window else { return }
 
         window.makeKeyAndOrderFront(nil)
+        window.orderFrontRegardless()
         NSApp.activate()
     }
 

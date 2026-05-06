@@ -61,7 +61,10 @@ struct WallpaperGalleryView: View {
 
             Spacer()
 
-            Button {
+            WallhavenActionButton(
+                role: .primary,
+                isDisabled: viewModel.isLoading
+            ) {
                 viewModel.refresh()
             } label: {
                 if viewModel.isLoading {
@@ -71,10 +74,8 @@ struct WallpaperGalleryView: View {
                     Text("Refresh")
                 }
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(viewModel.isLoading)
 
-            Button {
+            WallhavenActionButton(role: .icon) {
                 isShowingSettings = true
             } label: {
                 Image(systemName: "gearshape")
@@ -91,10 +92,11 @@ struct WallpaperGalleryView: View {
                     viewModel.submitSearch()
                 }
 
-            Button("Search") {
+            WallhavenActionButton(isDisabled: viewModel.isLoading) {
                 viewModel.submitSearch()
+            } label: {
+                Text("Search")
             }
-            .disabled(viewModel.isLoading)
         }
     }
 
@@ -170,14 +172,12 @@ struct WallpaperGalleryView: View {
                 }
 
                 if viewModel.canLoadMore {
-                    Button {
+                    WallhavenActionButton(isDisabled: viewModel.isLoading) {
                         viewModel.loadNextPage()
                     } label: {
                         Text(viewModel.isLoading ? "Loading..." : "Load More")
-                            .frame(maxWidth: .infinity)
+                            .frame(maxWidth: .infinity, minHeight: 30)
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(viewModel.isLoading)
                     .gridCellColumns(columns.count)
                     .padding(.top, 4)
                 }

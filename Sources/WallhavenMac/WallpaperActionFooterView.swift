@@ -18,14 +18,15 @@ struct WallpaperActionFooterView: View {
 
             Spacer()
 
-            Button("Open") {
+            WallhavenActionButton(isDisabled: wallpaper == nil) {
                 if let url = wallpaper?.url {
                     NSWorkspace.shared.open(url)
                 }
+            } label: {
+                Text("Open")
             }
-            .disabled(wallpaper == nil)
 
-            Button(action: onDownload) {
+            WallhavenActionButton(isDisabled: wallpaper == nil || isDownloading, action: onDownload) {
                 if isDownloading {
                     ProgressView()
                         .controlSize(.small)
@@ -33,9 +34,12 @@ struct WallpaperActionFooterView: View {
                     Text(downloadedWallpaperURL == nil ? "Download" : "Downloaded")
                 }
             }
-            .disabled(wallpaper == nil || isDownloading)
 
-            Button(action: onSetWallpaper) {
+            WallhavenActionButton(
+                role: .primary,
+                isDisabled: wallpaper == nil || isSettingWallpaper,
+                action: onSetWallpaper
+            ) {
                 if isSettingWallpaper {
                     ProgressView()
                         .controlSize(.small)
@@ -44,7 +48,6 @@ struct WallpaperActionFooterView: View {
                 }
             }
             .keyboardShortcut(.defaultAction)
-            .disabled(wallpaper == nil || isSettingWallpaper)
         }
     }
 
