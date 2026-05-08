@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import WallhavenCore
 
@@ -6,33 +7,13 @@ struct WallpaperThumbnailView: View {
     let isSelected: Bool
     let action: () -> Void
 
+    @State private var image: NSImage?
+    @State private var isLoadingImage = false
+    @State private var didFailLoadingImage = false
+
     var body: some View {
         Button(action: action) {
-            AsyncImage(url: wallpaper.thumbs.large) { phase in
-                switch phase {
-                case let .success(image):
-                    image
-                        .resizable()
-                        .scaledToFill()
-                case .failure:
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            Image(systemName: "exclamationmark.triangle")
-                                .foregroundStyle(.secondary)
-                        }
-                case .empty:
-                    Rectangle()
-                        .fill(.quaternary)
-                        .overlay {
-                            ProgressView()
-                                .controlSize(.small)
-                        }
-                @unknown default:
-                    Rectangle()
-                        .fill(.quaternary)
-                }
-            }
+            thumbnailContent
             .frame(height: 92)
             .clipShape(RoundedRectangle(cornerRadius: 6))
             .overlay(alignment: .bottomLeading) {
@@ -52,5 +33,45 @@ struct WallpaperThumbnailView: View {
         }
         .buttonStyle(.plain)
         .help("#\(wallpaper.id) - \(wallpaper.category) - \(wallpaper.purity)")
+        .task(id: wallpaper.id) {
+            await loadThumbnail()
+        }
+    }
+
+    @ViewBuilder
+    private var thumbnailContent: some View {
+        if let image {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Rectangle()
+                .fill(.quaternary)
+                .overlay {
+                    if didFailLoadingImage {
+                        Image(systemName: "exclamationmark.triangle")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+        }
+    }
+
+    private func loadThumbnail() async {
+        guard image == nil, !isLoadingImage else { return }
+
+        isLoadingImage = true
+        didFailLoadingImage = false
+
+        do {
+            image = try await WallpaperThumbnailImageLoader.loadImage(for: wallpaper)
+        } catch is CancellationError {
+        } catch {
+            didFailLoadingImage = true
+        }
+
+        isLoadingImage = false
     }
 }

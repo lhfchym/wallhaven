@@ -1,37 +1,19 @@
+import AppKit
 import SwiftUI
 import WallhavenCore
 
 struct WallpaperPreviewView: View {
     let wallpaper: WallhavenWallpaper?
 
+    @State private var image: NSImage?
+    @State private var imageWallpaperID: String?
+    @State private var isLoadingImage = false
+    @State private var didFailLoadingImage = false
+
     var body: some View {
         Group {
             if let wallpaper {
-                AsyncImage(url: wallpaper.thumbs.original) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image
-                            .resizable()
-                            .scaledToFill()
-                    case .failure:
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                Image(systemName: "photo.badge.exclamationmark")
-                                    .foregroundStyle(.secondary)
-                            }
-                    case .empty:
-                        Rectangle()
-                            .fill(.quaternary)
-                            .overlay {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                    @unknown default:
-                        Rectangle()
-                            .fill(.quaternary)
-                    }
-                }
+                previewContent
                 .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
                 .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 6))
@@ -45,8 +27,51 @@ struct WallpaperPreviewView: View {
                         .background(.black.opacity(0.56), in: Capsule())
                         .padding(8)
                 }
+                .task(id: wallpaper.id) {
+                    await loadPreview(for: wallpaper)
+                }
             }
         }
+    }
+
+    @ViewBuilder
+    private var previewContent: some View {
+        if let image {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFill()
+        } else {
+            Rectangle()
+                .fill(.quaternary)
+                .overlay {
+                    if didFailLoadingImage {
+                        Image(systemName: "photo.badge.exclamationmark")
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ProgressView()
+                            .controlSize(.small)
+                    }
+                }
+        }
+    }
+
+    private func loadPreview(for wallpaper: WallhavenWallpaper) async {
+        if imageWallpaperID != wallpaper.id {
+            image = nil
+            imageWallpaperID = wallpaper.id
+        }
+
+        isLoadingImage = true
+        didFailLoadingImage = false
+
+        do {
+            image = try await WallpaperThumbnailImageLoader.loadPreviewImage(for: wallpaper)
+        } catch is CancellationError {
+        } catch {
+            didFailLoadingImage = true
+        }
+
+        isLoadingImage = false
     }
 
     private func formattedFileSize(_ byteCount: Int) -> String {

@@ -1,6 +1,8 @@
 .build/
 .swiftpm/
 DerivedData/
+build/
+dist/
 *.xcodeproj/
 *.xcworkspace/
 *.xcuserstate

@@ -313,6 +313,8 @@ private extension WallpaperGalleryViewModel {
                 return "Unexpected wallhaven response."
             case let .unexpectedStatus(statusCode):
                 return "wallhaven returned HTTP \(statusCode)."
+            case let .curlFailed(message):
+                return message
             }
         }
 
@@ -322,6 +324,8 @@ private extension WallpaperGalleryViewModel {
                 return "Unexpected image download response."
             case let .unexpectedStatus(statusCode):
                 return "Image download returned HTTP \(statusCode)."
+            case let .curlFailed(message):
+                return "Image download failed: \(message)"
             }
         }
 

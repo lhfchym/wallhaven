@@ -26,6 +26,19 @@ xcodegen generate
 xcodebuild -project WallhavenMac.xcodeproj -scheme WallhavenMac -configuration Debug build
 ```
 
+To build a local test DMG:
+
+```sh
+Scripts/package_dmg.sh
+```
+
+The DMG is written to `dist/` using the version in `project.yml`. This local test build is signed for local
+running, not notarized.
+
+By default, packaging increments the patch component of `MARKETING_VERSION` and mirrors it to
+`CURRENT_PROJECT_VERSION`. For example, `0.1.1` becomes `0.1.2`; after manually setting `0.2.0`,
+the next package build becomes `0.2.1`.
+
 Useful local tools:
 
 ```sh
