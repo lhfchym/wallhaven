@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         configureMainMenu()
         configureWindow()
         configureStatusItem()
+        WallhavenDebugLog.record("App launched")
         showWindow()
     }
 
@@ -47,6 +48,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: ""
         )
         aboutItem.target = NSApp
+
+        appMenu.addItem(
+            withTitle: "Show Logs",
+            action: #selector(showLogs),
+            keyEquivalent: ""
+        )
 
         appMenu.addItem(.separator())
 
@@ -131,6 +138,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         item.button?.action = #selector(toggleWindow)
         item.button?.target = self
         statusItem = item
+    }
+
+    @objc private func showLogs() {
+        let logFileURL = WallhavenDebugLog.ensureLogFile()
+        WallhavenDebugLog.record("Show Logs selected", details: ["path": logFileURL.path])
+
+        NSWorkspace.shared.activateFileViewerSelecting([logFileURL])
     }
 
     @objc private func toggleWindow() {

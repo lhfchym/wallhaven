@@ -133,6 +133,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
             } catch {
                 successMessage = nil
                 errorMessage = "Open folder failed: \(readableMessage(for: error))"
+                WallhavenDebugLog.recordError(
+                    "Open download folder failed",
+                    error: error,
+                    details: ["directory": downloadDirectoryURL?.path ?? "unknown"]
+                )
             }
         }
     }
@@ -167,7 +172,9 @@ final class WallpaperGalleryViewModel: ObservableObject {
             await setWallpaper(selectedWallpaper)
         }
     }
+}
 
+private extension WallpaperGalleryViewModel {
     private func load(reset: Bool) async {
         isLoading = true
         errorMessage = nil
@@ -219,6 +226,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
                 currentPage = max(currentPage - 1, 1)
             }
             errorMessage = readableMessage(for: error)
+            logSearchFailure(error, request: request, reset: reset)
         }
 
         isLoading = false
@@ -238,6 +246,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
             }
         } catch {
             errorMessage = "Download failed: \(readableMessage(for: error))"
+            WallhavenDebugLog.recordError(
+                "Wallpaper download failed",
+                error: error,
+                details: details(for: wallpaper)
+            )
         }
 
         isDownloading = false
@@ -265,6 +278,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
         } catch {
             isDownloading = false
             errorMessage = readableMessage(for: error)
+            WallhavenDebugLog.recordError(
+                "Set desktop wallpaper failed",
+                error: error,
+                details: details(for: wallpaper)
+            )
         }
 
         isSettingWallpaper = false
@@ -288,9 +306,6 @@ final class WallpaperGalleryViewModel: ObservableObject {
         preferences.query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         await preferencesStore.save(preferences)
     }
-}
-
-private extension WallpaperGalleryViewModel {
     func configureDownloadDirectory() async {
         await fileStore.setDownloadDirectory(preferences.downloadDirectoryURL)
         downloadDirectoryURL = await fileStore.downloadDirectory()
@@ -330,5 +345,40 @@ private extension WallpaperGalleryViewModel {
         }
 
         return error.localizedDescription
+    }
+
+    func logSearchFailure(_ error: Error, request: WallpaperSearchRequest, reset: Bool) {
+        WallhavenDebugLog.recordError(
+            "Wallpaper search failed",
+            error: error,
+            details: [
+                "categories": preferences.categories.rawValue,
+                "display_aspect": display.aspectRatioQuery,
+                "display_resolution": display.resolutionQuery,
+                "has_api_key": preferences.apiKey.isEmpty ? "false" : "true",
+                "page": "\(currentPage)",
+                "purity": preferences.purity.rawValue,
+                "query": request.preferences.query,
+                "request_url_without_api_key": request.url(apiKey: nil).absoluteString,
+                "reset": "\(reset)",
+                "sorting": preferences.sorting.rawValue
+            ]
+        )
+    }
+
+    func details(for wallpaper: WallhavenWallpaper) -> [String: String] {
+        [
+            "category": wallpaper.category,
+            "download_directory": downloadDirectoryURL?.path ?? "unknown",
+            "file_size": "\(wallpaper.fileSize)",
+            "file_type": wallpaper.fileType,
+            "id": wallpaper.id,
+            "path": wallpaper.path.absoluteString,
+            "purity": wallpaper.purity,
+            "resolution": wallpaper.resolution,
+            "thumb_large": wallpaper.thumbs.large.absoluteString,
+            "thumb_original": wallpaper.thumbs.original.absoluteString,
+            "thumb_small": wallpaper.thumbs.small.absoluteString
+        ]
     }
 }

@@ -69,6 +69,11 @@ struct WallpaperPreviewView: View {
         } catch is CancellationError {
         } catch {
             didFailLoadingImage = true
+            WallhavenDebugLog.recordError(
+                "Preview image failed",
+                error: error,
+                details: details(for: wallpaper)
+            )
         }
 
         isLoadingImage = false
@@ -76,5 +81,16 @@ struct WallpaperPreviewView: View {
 
     private func formattedFileSize(_ byteCount: Int) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(byteCount), countStyle: .file)
+    }
+
+    private func details(for wallpaper: WallhavenWallpaper) -> [String: String] {
+        [
+            "id": wallpaper.id,
+            "path": wallpaper.path.absoluteString,
+            "resolution": wallpaper.resolution,
+            "thumb_large": wallpaper.thumbs.large.absoluteString,
+            "thumb_original": wallpaper.thumbs.original.absoluteString,
+            "thumb_small": wallpaper.thumbs.small.absoluteString
+        ]
     }
 }
