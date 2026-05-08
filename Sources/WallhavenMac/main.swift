@@ -41,6 +41,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenuItem = NSMenuItem()
         let appMenu = NSMenu()
 
+        let aboutItem = appMenu.addItem(
+            withTitle: "About WallhavenMac",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        aboutItem.target = NSApp
+
+        appMenu.addItem(.separator())
+
         appMenu.addItem(
             withTitle: "Quit WallhavenMac",
             action: #selector(NSApplication.terminate(_:)),
