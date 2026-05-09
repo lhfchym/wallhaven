@@ -5,17 +5,20 @@ public struct WallpaperSearchPreferences: Equatable, Sendable {
     public var categories: WallhavenCategories
     public var purity: WallhavenPurity
     public var sorting: WallhavenSorting
+    public var strictAspectRatio: Bool
 
     public init(
         query: String = "",
         categories: WallhavenCategories = .general,
         purity: WallhavenPurity = .sfw,
-        sorting: WallhavenSorting = .random
+        sorting: WallhavenSorting = .random,
+        strictAspectRatio: Bool = false
     ) {
         self.query = query
         self.categories = categories
         self.purity = purity
         self.sorting = sorting
+        self.strictAspectRatio = strictAspectRatio
     }
 }
 

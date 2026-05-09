@@ -28,10 +28,13 @@ public struct WallpaperSearchRequest: Equatable, Sendable {
             URLQueryItem(name: "categories", value: preferences.categories.apiValue),
             URLQueryItem(name: "purity", value: preferences.purity.apiValue),
             URLQueryItem(name: "sorting", value: preferences.sorting.rawValue),
-            URLQueryItem(name: "ratios", value: display.aspectRatioQuery),
             URLQueryItem(name: "atleast", value: display.resolutionQuery),
             URLQueryItem(name: "page", value: String(page))
         ]
+
+        if preferences.strictAspectRatio {
+            queryItems.append(URLQueryItem(name: "ratios", value: display.aspectRatioQuery))
+        }
 
         if let apiKey, !apiKey.isEmpty {
             queryItems.append(URLQueryItem(name: "apikey", value: apiKey))

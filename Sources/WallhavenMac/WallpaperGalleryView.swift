@@ -38,9 +38,14 @@ struct WallpaperGalleryView: View {
             WallhavenSettingsView(
                 apiKey: viewModel.preferences.apiKey,
                 downloadDirectoryPath: viewModel.preferences.downloadDirectoryPath,
+                strictAspectRatio: viewModel.preferences.strictAspectRatio,
                 defaultDownloadDirectoryURL: viewModel.downloadDirectoryURL,
-                onSave: { apiKey, downloadDirectoryPath in
-                    viewModel.updateSettings(apiKey: apiKey, downloadDirectoryPath: downloadDirectoryPath)
+                onSave: { apiKey, downloadDirectoryPath, strictAspectRatio in
+                    viewModel.updateSettings(
+                        apiKey: apiKey,
+                        downloadDirectoryPath: downloadDirectoryPath,
+                        strictAspectRatio: strictAspectRatio
+                    )
                     isShowingSettings = false
                 },
                 onCancel: {

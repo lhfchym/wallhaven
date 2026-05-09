@@ -8,6 +8,7 @@ struct WallhavenUserPreferences: Equatable, Sendable {
     var categories: WallhavenCategoryPreset
     var purity: WallhavenPurityPreset
     var sorting: WallhavenSorting
+    var strictAspectRatio: Bool
 
     init(
         apiKey: String = "",
@@ -15,7 +16,8 @@ struct WallhavenUserPreferences: Equatable, Sendable {
         downloadDirectoryPath: String? = nil,
         categories: WallhavenCategoryPreset = .general,
         purity: WallhavenPurityPreset = .sfw,
-        sorting: WallhavenSorting = .random
+        sorting: WallhavenSorting = .random,
+        strictAspectRatio: Bool = false
     ) {
         self.apiKey = apiKey
         self.query = query
@@ -23,6 +25,7 @@ struct WallhavenUserPreferences: Equatable, Sendable {
         self.categories = categories
         self.purity = purity
         self.sorting = sorting
+        self.strictAspectRatio = strictAspectRatio
     }
 
     var downloadDirectoryURL: URL? {
@@ -108,6 +111,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         static let categories = "wallhaven.categories"
         static let purity = "wallhaven.purity"
         static let sorting = "wallhaven.sorting"
+        static let strictAspectRatio = "wallhaven.strictAspectRatio"
     }
 
     private let defaults: UserDefaults
@@ -130,6 +134,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
             .flatMap(WallhavenPurityPreset.init(rawValue:)) ?? .sfw
         let sorting = defaults.string(forKey: Keys.sorting)
             .flatMap(WallhavenSorting.init(rawValue:)) ?? .random
+        let strictAspectRatio = defaults.bool(forKey: Keys.strictAspectRatio)
 
         return WallhavenUserPreferences(
             apiKey: apiKeyStore.loadAPIKey(),
@@ -137,7 +142,8 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
             downloadDirectoryPath: downloadDirectoryPath,
             categories: categories,
             purity: purity,
-            sorting: sorting
+            sorting: sorting,
+            strictAspectRatio: strictAspectRatio
         )
     }
 
@@ -152,5 +158,6 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         defaults.set(preferences.categories.rawValue, forKey: Keys.categories)
         defaults.set(preferences.purity.rawValue, forKey: Keys.purity)
         defaults.set(preferences.sorting.rawValue, forKey: Keys.sorting)
+        defaults.set(preferences.strictAspectRatio, forKey: Keys.strictAspectRatio)
     }
 }

@@ -49,10 +49,10 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
     var statusText: String {
         if let meta {
-            return "\(wallpapers.count) of \(meta.total) - \(display.resolutionQuery) - \(display.aspectRatioQuery)"
+            return "\(wallpapers.count) of \(meta.total) - \(displayMatchingStatus)"
         }
 
-        return "\(display.resolutionQuery) - \(display.aspectRatioQuery)"
+        return displayMatchingStatus
     }
 
     func refreshDisplay() {
@@ -106,9 +106,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
         }
     }
 
-    func updateSettings(apiKey: String, downloadDirectoryPath: String?) {
+    func updateSettings(apiKey: String, downloadDirectoryPath: String?, strictAspectRatio: Bool) {
         preferences.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         preferences.downloadDirectoryPath = downloadDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let didChangeAspectRatioMode = preferences.strictAspectRatio != strictAspectRatio
+        preferences.strictAspectRatio = strictAspectRatio
 
         Task {
             await saveCurrentPreferences()
@@ -118,6 +120,10 @@ final class WallpaperGalleryViewModel: ObservableObject {
                 downloadedWallpaperURL = await fileStore.cachedURL(for: selectedWallpaper)
             } else {
                 downloadedWallpaperURL = nil
+            }
+
+            if didChangeAspectRatioMode {
+                await load(reset: true)
             }
         }
     }
@@ -193,7 +199,8 @@ private extension WallpaperGalleryViewModel {
                 query: query.trimmingCharacters(in: .whitespacesAndNewlines),
                 categories: preferences.categories.categories,
                 purity: preferences.purity.purity,
-                sorting: preferences.sorting
+                sorting: preferences.sorting,
+                strictAspectRatio: preferences.strictAspectRatio
             ),
             display: display,
             page: currentPage,
@@ -311,6 +318,14 @@ private extension WallpaperGalleryViewModel {
         downloadDirectoryURL = await fileStore.downloadDirectory()
     }
 
+    var displayMatchingStatus: String {
+        if preferences.strictAspectRatio {
+            return "\(display.resolutionQuery) - \(display.aspectRatioQuery)"
+        }
+
+        return "\(display.resolutionQuery) - any ratio"
+    }
+
     func updateCachedDownloadStatus(for wallpaper: WallhavenWallpaper) {
         Task {
             let cachedURL = await fileStore.cachedURL(for: wallpaper)
@@ -361,7 +376,8 @@ private extension WallpaperGalleryViewModel {
                 "query": request.preferences.query,
                 "request_url_without_api_key": request.url(apiKey: nil).absoluteString,
                 "reset": "\(reset)",
-                "sorting": preferences.sorting.rawValue
+                "sorting": preferences.sorting.rawValue,
+                "strict_aspect_ratio": "\(preferences.strictAspectRatio)"
             ]
         )
     }

@@ -10,7 +10,7 @@ import Testing
     #expect(display.aspectRatioQuery == "756x491")
 }
 
-@Test func searchRequestIncludesDisplayMatchingParameters() {
+@Test func searchRequestIncludesDisplayResolutionByDefault() {
     let request = WallpaperSearchRequest(
         preferences: WallpaperSearchPreferences(query: "city night"),
         display: DisplayProfile(width: 1920, height: 1080),
@@ -28,10 +28,26 @@ import Testing
     #expect(queryItems["categories"] == "100")
     #expect(queryItems["purity"] == "100")
     #expect(queryItems["sorting"] == "random")
-    #expect(queryItems["ratios"] == "16x9")
+    #expect(queryItems["ratios"] == nil)
     #expect(queryItems["atleast"] == "1920x1080")
     #expect(queryItems["page"] == "2")
     #expect(queryItems["seed"] == "abc123")
+}
+
+@Test func searchRequestIncludesRatioWhenStrictAspectRatioIsEnabled() {
+    let request = WallpaperSearchRequest(
+        preferences: WallpaperSearchPreferences(strictAspectRatio: true),
+        display: DisplayProfile(width: 1920, height: 1080)
+    )
+
+    let url = request.url()
+    let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
+    let queryItems = Dictionary(uniqueKeysWithValues: components?.queryItems?
+        .map { ($0.name, $0.value ?? "") } ?? []
+    )
+
+    #expect(queryItems["ratios"] == "16x9")
+    #expect(queryItems["atleast"] == "1920x1080")
 }
 
 @Test func searchResponseDecodesObjectQueryAsNil() throws {

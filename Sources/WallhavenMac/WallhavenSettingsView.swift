@@ -4,20 +4,23 @@ import SwiftUI
 struct WallhavenSettingsView: View {
     @State private var apiKey: String
     @State private var downloadDirectoryPath: String
+    @State private var strictAspectRatio: Bool
 
     let defaultDownloadDirectoryURL: URL?
-    let onSave: (String, String?) -> Void
+    let onSave: (String, String?, Bool) -> Void
     let onCancel: () -> Void
 
     init(
         apiKey: String,
         downloadDirectoryPath: String?,
+        strictAspectRatio: Bool,
         defaultDownloadDirectoryURL: URL?,
-        onSave: @escaping (String, String?) -> Void,
+        onSave: @escaping (String, String?, Bool) -> Void,
         onCancel: @escaping () -> Void
     ) {
         _apiKey = State(initialValue: apiKey)
         _downloadDirectoryPath = State(initialValue: downloadDirectoryPath ?? "")
+        _strictAspectRatio = State(initialValue: strictAspectRatio)
         self.defaultDownloadDirectoryURL = defaultDownloadDirectoryURL
         self.onSave = onSave
         self.onCancel = onCancel
@@ -60,6 +63,14 @@ struct WallhavenSettingsView: View {
                 .lineLimit(2)
                 .truncationMode(.middle)
 
+            Divider()
+
+            Toggle("Strict aspect ratio", isOn: $strictAspectRatio)
+
+            Text("When enabled, searches only return wallpapers matching this display's exact ratio.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             HStack {
                 Spacer()
 
@@ -68,7 +79,7 @@ struct WallhavenSettingsView: View {
                 }
 
                 Button("Save") {
-                    onSave(apiKey, normalizedDownloadDirectoryPath)
+                    onSave(apiKey, normalizedDownloadDirectoryPath, strictAspectRatio)
                 }
                 .keyboardShortcut(.defaultAction)
             }
