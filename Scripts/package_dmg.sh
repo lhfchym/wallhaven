@@ -4,34 +4,12 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="WallhavenMac"
 PROJECT_FILE="${ROOT_DIR}/project.yml"
-
-project_version() {
-    awk '/MARKETING_VERSION:/ { print $2; exit }' "${PROJECT_FILE}"
-}
-
-bump_patch_version() {
-    local current major minor patch next
-
-    current="$(project_version)"
-    IFS=. read -r major minor patch <<<"${current}"
-
-    if [[ -z "${major}" || -z "${minor}" || -z "${patch}" ]]; then
-        echo "error: MARKETING_VERSION must look like major.minor.patch, got '${current}'" >&2
-        exit 1
-    fi
-
-    next="${major}.${minor}.$((patch + 1))"
-
-    perl -0pi -e "s/MARKETING_VERSION: \\Q${current}\\E/MARKETING_VERSION: ${next}/" "${PROJECT_FILE}"
-    perl -0pi -e "s/CURRENT_PROJECT_VERSION: \\d+/CURRENT_PROJECT_VERSION: $((patch + 1))/" "${PROJECT_FILE}"
-
-    echo "${next}"
-}
+source "${ROOT_DIR}/Scripts/versioning.sh"
 
 if [[ -n "${VERSION:-}" ]]; then
     APP_VERSION="${VERSION}"
 else
-    APP_VERSION="$(bump_patch_version)"
+    APP_VERSION="$(bump_patch_version "${PROJECT_FILE}")"
 fi
 
 VOLUME_NAME="${APP_NAME} ${APP_VERSION}"
