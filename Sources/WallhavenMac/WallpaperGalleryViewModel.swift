@@ -297,9 +297,7 @@ private extension WallpaperGalleryViewModel {
 
     private func prioritizedWallpapers(from candidates: [WallhavenWallpaper]) async -> [WallhavenWallpaper] {
         let recentIDs = await historyStore.recentWallpaperIDs()
-        let freshWallpapers = candidates.filter { !recentIDs.contains($0.id) }
-        let recentWallpapers = candidates.filter { recentIDs.contains($0.id) }
-        return freshWallpapers + recentWallpapers
+        return WallpaperDisplayPrioritizer.prioritize(candidates, display: display, recentIDs: recentIDs)
     }
 
     private func savePreferencesAndReload() {
@@ -323,7 +321,7 @@ private extension WallpaperGalleryViewModel {
             return "\(display.resolutionQuery) - \(display.aspectRatioQuery)"
         }
 
-        return "\(display.resolutionQuery) - any ratio"
+        return "\(display.resolutionQuery) - high-res crop fit"
     }
 
     func updateCachedDownloadStatus(for wallpaper: WallhavenWallpaper) {

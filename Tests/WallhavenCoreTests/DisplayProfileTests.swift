@@ -50,6 +50,47 @@ import Testing
     #expect(queryItems["atleast"] == "1920x1080")
 }
 
+@Test func displayFitScoresExactNativeMatchHighest() {
+    let display = DisplayProfile(width: 2940, height: 1912)
+    let exactFit = WallpaperDisplayFit.evaluate(imageWidth: 2940, imageHeight: 1912, display: display)
+    let croppedFit = WallpaperDisplayFit.evaluate(imageWidth: 3840, imageHeight: 2160, display: display)
+
+    #expect(exactFit.canCoverDisplay)
+    #expect(exactFit.tier == .excellent)
+    #expect(exactFit.score > croppedFit.score)
+    #expect(abs(exactFit.cropLoss) < 0.0001)
+}
+
+@Test func displayFitTreatsLargerDifferentRatioImagesAsUsableCropFits() {
+    let display = DisplayProfile(width: 2940, height: 1912)
+    let fit = WallpaperDisplayFit.evaluate(imageWidth: 3840, imageHeight: 2160, display: display)
+
+    #expect(fit.canCoverDisplay)
+    #expect(fit.tier == .good)
+    #expect(fit.score > 0.8)
+    #expect(fit.cropLoss > 0)
+}
+
+@Test func displayFitDownranksImagesBelowDisplayResolution() {
+    let display = DisplayProfile(width: 2940, height: 1912)
+    let nativeFit = WallpaperDisplayFit.evaluate(imageWidth: 2940, imageHeight: 1912, display: display)
+    let undersizedFit = WallpaperDisplayFit.evaluate(imageWidth: 2800, imageHeight: 1912, display: display)
+
+    #expect(!undersizedFit.canCoverDisplay)
+    #expect(undersizedFit.tier == .limited)
+    #expect(undersizedFit.score < nativeFit.score)
+    #expect(undersizedFit.score <= 0.45)
+}
+
+@Test func displayFitRewardsLowerCropLoss() {
+    let display = DisplayProfile(width: 2940, height: 1912)
+    let closerFit = WallpaperDisplayFit.evaluate(imageWidth: 3840, imageHeight: 2160, display: display)
+    let widerFit = WallpaperDisplayFit.evaluate(imageWidth: 5120, imageHeight: 2160, display: display)
+
+    #expect(closerFit.cropLoss < widerFit.cropLoss)
+    #expect(closerFit.score > widerFit.score)
+}
+
 @Test func searchResponseDecodesObjectQueryAsNil() throws {
     let json = """
     {
