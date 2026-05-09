@@ -177,15 +177,10 @@ struct WallpaperGalleryView: View {
                     }
                 }
 
-                if viewModel.canLoadMore {
-                    WallhavenActionButton(isDisabled: viewModel.isLoading) {
-                        viewModel.loadNextPage()
-                    } label: {
-                        Text(viewModel.isLoading ? "Loading..." : "Load More")
-                            .frame(maxWidth: .infinity, minHeight: 30)
-                    }
-                    .gridCellColumns(columns.count)
-                    .padding(.top, 4)
+                if !viewModel.wallpapers.isEmpty && (viewModel.canLoadMore || viewModel.isLoading) {
+                    autoLoadMoreFooter
+                        .gridCellColumns(columns.count)
+                        .padding(.top, 4)
                 }
             }
             .padding(.vertical, 2)
@@ -198,6 +193,26 @@ struct WallpaperGalleryView: View {
                     description: Text(viewModel.errorMessage ?? "Try another search or refresh.")
                 )
             }
+        }
+    }
+
+    private var autoLoadMoreFooter: some View {
+        HStack(spacing: 8) {
+            if viewModel.isLoading {
+                ProgressView()
+                    .controlSize(.small)
+                Text("Loading more wallpapers...")
+            } else {
+                Image(systemName: "arrow.down")
+                Text("Scroll to load more")
+            }
+        }
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 34)
+        .onAppear {
+            guard viewModel.canLoadMore else { return }
+            viewModel.loadNextPage()
         }
     }
 }
