@@ -34,6 +34,15 @@ struct WallhavenCopy {
     var latest: String { text(chinese: "最新", english: "Latest") }
     var favoriteRanking: String { text(chinese: "收藏排行", english: "Favorites") }
     var downloaded: String { text(chinese: "已下载", english: "Downloaded") }
+    var downloadedWallpapersTitle: String { text(chinese: "已下载壁纸", english: "Downloaded Wallpapers") }
+    var noDownloadedWallpapers: String { text(chinese: "没有已下载壁纸", english: "No Downloaded Wallpapers") }
+    var emptyDownloadedHelp: String {
+        text(chinese: "下载过的壁纸会显示在这里。", english: "Downloaded wallpapers will appear here.")
+    }
+
+    var downloadedStatus: String { text(chinese: "已下载", english: "Downloaded") }
+    var showInFinder: String { text(chinese: "在 Finder 中显示", english: "Reveal in Finder") }
+    var openDownloadFolder: String { text(chinese: "打开下载文件夹", english: "Open Download Folder") }
     var categoryAndPurity: String { text(chinese: "分类&色调", english: "Category & Purity") }
     var category: String { text(chinese: "分类", english: "Category") }
     var purity: String { text(chinese: "色调", english: "Purity") }
@@ -64,6 +73,12 @@ struct WallhavenCopy {
     var feedback: String { text(chinese: "意见反馈", english: "Feedback") }
     var openedDownloadFolder: String { text(chinese: "已打开下载文件夹。", english: "Opened download folder.") }
     var openFolderFailedPrefix: String { text(chinese: "打开文件夹失败：", english: "Open folder failed: ") }
+    var deleteDownloadedFailedPrefix: String { text(chinese: "移到废纸篓失败：", english: "Move to Trash failed: ") }
+    var deletedDownloadedWallpaper: String { text(chinese: "已移到废纸篓。", english: "Moved to Trash.") }
+    var loadedDownloadedFailedPrefix: String { text(
+        chinese: "读取已下载壁纸失败：",
+        english: "Load downloaded wallpapers failed: "
+    ) }
     var downloadSucceededPrefix: String { text(chinese: "下载成功：", english: "Download succeeded: ") }
     var downloadSucceededIDPrefix: String { text(chinese: "下载成功：#", english: "Download succeeded: #") }
     var downloadFailedPrefix: String { text(chinese: "下载失败：", english: "Download failed: ") }
@@ -75,6 +90,15 @@ struct WallhavenCopy {
             "\(count) / \(total) - \(displayMatchingStatus)"
         case .english:
             "\(count) of \(total) - \(displayMatchingStatus)"
+        }
+    }
+
+    func downloadedStatus(count: Int) -> String {
+        switch language {
+        case .chinese:
+            "\(count) 张已下载壁纸"
+        case .english:
+            "\(count) downloaded wallpapers"
         }
     }
 

@@ -15,43 +15,48 @@ struct WallpaperPreviewView: View {
     @State private var didFailLoadingImage = false
 
     var body: some View {
-        Group {
-            if let wallpaper {
-                previewContent
-                    .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    .allowsHitTesting(false)
-                    .overlay(alignment: .bottomLeading) {
-                        if showsMetadata {
-                            Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
-                                .font(.caption2)
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 5)
-                                .foregroundStyle(.white)
-                                .background(.black.opacity(0.56), in: Capsule())
-                                .padding(8)
+        GeometryReader { proxy in
+            Group {
+                if let wallpaper {
+                    previewContent
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                        .allowsHitTesting(false)
+                        .overlay(alignment: .bottomLeading) {
+                            if showsMetadata {
+                                Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
+                                    .font(.caption2)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 5)
+                                    .foregroundStyle(.white)
+                                    .background(.black.opacity(0.56), in: Capsule())
+                                    .padding(8)
+                            }
                         }
-                    }
-                    .task(id: wallpaper.id) {
-                        await loadPreview(for: wallpaper)
-                    }
-            } else {
-                Rectangle()
-                    .fill(.quaternary)
-                    .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
-                    .overlay {
-                        VStack(spacing: 8) {
-                            Image(systemName: "photo.on.rectangle")
-                                .font(.system(size: 24, weight: .regular))
-                            Text(emptyTitle)
-                                .font(.caption)
+                        .task(id: wallpaper.id) {
+                            await loadPreview(for: wallpaper)
                         }
-                        .foregroundStyle(.secondary)
-                    }
+                } else {
+                    Rectangle()
+                        .fill(.quaternary)
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                        .overlay {
+                            VStack(spacing: 8) {
+                                Image(systemName: "photo.on.rectangle")
+                                    .font(.system(size: 24, weight: .regular))
+                                Text(emptyTitle)
+                                    .font(.caption)
+                            }
+                            .foregroundStyle(.secondary)
+                        }
+                }
             }
         }
+        .frame(maxWidth: .infinity)
+        .frame(height: height)
+        .clipped()
     }
 
     @ViewBuilder

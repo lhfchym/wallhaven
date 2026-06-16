@@ -5,6 +5,8 @@ protocol WallpaperFileStoring: Sendable {
     func downloadDirectory() async -> URL
     func setDownloadDirectory(_ directoryURL: URL?) async
     func ensureDownloadDirectory() async throws -> URL
+    func downloadedWallpapers() async throws -> [DownloadedWallpaper]
+    func deleteDownloadedWallpaper(_ wallpaper: DownloadedWallpaper) async throws
     func localURL(for wallpaper: WallhavenWallpaper) async -> URL
     func cachedURL(for wallpaper: WallhavenWallpaper) async -> URL?
     func downloadedURL(for wallpaper: WallhavenWallpaper) async throws -> URL
@@ -42,6 +44,30 @@ actor WallpaperFileStore: WallpaperFileStoring {
         let directoryURL = downloadDirectory()
         try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: true)
         return directoryURL
+    }
+
+    func downloadedWallpapers() async throws -> [DownloadedWallpaper] {
+        let directoryURL = try ensureDownloadDirectory()
+        let fileURLs = try fileManager.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.contentModificationDateKey, .fileSizeKey, .isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        )
+
+        return fileURLs
+            .compactMap(downloadedWallpaper(from:))
+            .sorted { $0.modifiedAt > $1.modifiedAt }
+    }
+
+    func deleteDownloadedWallpaper(_ wallpaper: DownloadedWallpaper) async throws {
+        guard wallpaper.url.deletingLastPathComponent().standardizedFileURL == downloadDirectory().standardizedFileURL
+        else {
+            return
+        }
+
+        if fileManager.fileExists(atPath: wallpaper.url.path) {
+            try fileManager.trashItem(at: wallpaper.url, resultingItemURL: nil)
+        }
     }
 
     func localURL(for wallpaper: WallhavenWallpaper) -> URL {
@@ -177,6 +203,48 @@ actor WallpaperFileStore: WallpaperFileStoring {
         default:
             "jpg"
         }
+    }
+
+    private func downloadedWallpaper(from url: URL) -> DownloadedWallpaper? {
+        guard isSupportedImageFile(url) else { return nil }
+
+        let resourceValues = try? url.resourceValues(forKeys: [
+            .contentModificationDateKey,
+            .fileSizeKey,
+            .isRegularFileKey
+        ])
+
+        guard resourceValues?.isRegularFile != false else { return nil }
+
+        let fileName = url.lastPathComponent
+        let parsedName = parseDownloadedFileName(url.deletingPathExtension().lastPathComponent)
+        let id = parsedName.wallhavenID ?? url.standardizedFileURL.path
+
+        return DownloadedWallpaper(
+            id: id,
+            url: url,
+            fileName: fileName,
+            wallhavenID: parsedName.wallhavenID,
+            resolution: parsedName.resolution,
+            fileSize: resourceValues?.fileSize ?? 0,
+            modifiedAt: resourceValues?.contentModificationDate ?? .distantPast
+        )
+    }
+
+    private func isSupportedImageFile(_ url: URL) -> Bool {
+        ["jpg", "jpeg", "png", "webp", "heic", "tiff"].contains(url.pathExtension.lowercased())
+    }
+
+    private func parseDownloadedFileName(_ name: String) -> (wallhavenID: String?, resolution: String?) {
+        let prefix = "wallhaven-"
+        guard name.hasPrefix(prefix) else { return (nil, nil) }
+
+        let remainder = String(name.dropFirst(prefix.count))
+        let parts = remainder.split(separator: "-", maxSplits: 1).map(String.init)
+        guard let wallhavenID = parts.first, !wallhavenID.isEmpty else { return (nil, nil) }
+
+        let resolution = parts.count > 1 && !parts[1].isEmpty ? parts[1] : nil
+        return (wallhavenID, resolution)
     }
 }
 

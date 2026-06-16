@@ -64,7 +64,7 @@ struct WallpaperGalleryView: View {
                 SidebarNavigationButton(
                     title: copy.hottest,
                     systemImageName: "sparkles",
-                    isSelected: viewModel.preferences.sorting == .toplist
+                    isSelected: viewModel.selectedSection == .online && viewModel.preferences.sorting == .toplist
                 ) {
                     viewModel.updateSorting(.toplist)
                 }
@@ -72,7 +72,7 @@ struct WallpaperGalleryView: View {
                 SidebarNavigationButton(
                     title: copy.latest,
                     systemImageName: "clock",
-                    isSelected: viewModel.preferences.sorting == .dateAdded
+                    isSelected: viewModel.selectedSection == .online && viewModel.preferences.sorting == .dateAdded
                 ) {
                     viewModel.updateSorting(.dateAdded)
                 }
@@ -80,7 +80,7 @@ struct WallpaperGalleryView: View {
                 SidebarNavigationButton(
                     title: copy.favoriteRanking,
                     systemImageName: "star",
-                    isSelected: viewModel.preferences.sorting == .favorites
+                    isSelected: viewModel.selectedSection == .online && viewModel.preferences.sorting == .favorites
                 ) {
                     viewModel.updateSorting(.favorites)
                 }
@@ -88,9 +88,9 @@ struct WallpaperGalleryView: View {
                 SidebarNavigationButton(
                     title: copy.downloaded,
                     systemImageName: "arrow.down.square",
-                    isSelected: false
+                    isSelected: viewModel.selectedSection == .downloaded
                 ) {
-                    viewModel.openDownloadDirectory()
+                    viewModel.showDownloadedWallpapers()
                 }
             }
 
@@ -188,6 +188,20 @@ struct WallpaperGalleryView: View {
 
     private var gallery: some View {
         ScrollView {
+            galleryGrid
+        }
+        .overlay {
+            galleryEmptyState
+        }
+        .safeAreaInset(edge: .bottom) {
+            galleryBottomBar
+        }
+    }
+
+    @ViewBuilder
+    private var galleryGrid: some View {
+        switch viewModel.selectedSection {
+        case .online:
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(viewModel.wallpapers) { wallpaper in
                     WallpaperThumbnailView(
@@ -205,8 +219,29 @@ struct WallpaperGalleryView: View {
                 }
             }
             .padding(10)
+        case .downloaded:
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(viewModel.downloadedWallpapers) { wallpaper in
+                    DownloadedWallpaperThumbnailView(
+                        wallpaper: wallpaper,
+                        isSelected: viewModel.selectedDownloadedWallpaper?.id == wallpaper.id,
+                        onSelect: {
+                            viewModel.select(wallpaper)
+                        },
+                        onDelete: {
+                            viewModel.deleteDownloadedWallpaper(wallpaper)
+                        }
+                    )
+                }
+            }
+            .padding(10)
         }
-        .overlay {
+    }
+
+    @ViewBuilder
+    private var galleryEmptyState: some View {
+        switch viewModel.selectedSection {
+        case .online:
             if viewModel.wallpapers.isEmpty {
                 ContentUnavailableView(
                     viewModel.isLoading ? copy.loadingWallpapers : copy.noWallpapers,
@@ -214,9 +249,14 @@ struct WallpaperGalleryView: View {
                     description: Text(viewModel.errorMessage ?? copy.emptyGalleryHelp)
                 )
             }
-        }
-        .safeAreaInset(edge: .bottom) {
-            galleryBottomBar
+        case .downloaded:
+            if viewModel.downloadedWallpapers.isEmpty {
+                ContentUnavailableView(
+                    viewModel.isLoading ? copy.loadingWallpapers : copy.noDownloadedWallpapers,
+                    systemImage: viewModel.isLoading ? "photo.stack" : "tray",
+                    description: Text(viewModel.errorMessage ?? copy.emptyDownloadedHelp)
+                )
+            }
         }
     }
 
@@ -234,10 +274,17 @@ struct WallpaperGalleryView: View {
             }
             .frame(width: 84, height: 32)
 
-            MacActionButton(copy.nextPage, isDisabled: !viewModel.canLoadMore || viewModel.isLoading) {
-                viewModel.loadNextPage()
+            if viewModel.selectedSection == .online {
+                MacActionButton(copy.nextPage, isDisabled: !viewModel.canLoadMore || viewModel.isLoading) {
+                    viewModel.loadNextPage()
+                }
+                .frame(width: 84, height: 32)
+            } else {
+                MacActionButton(copy.openDownloadFolder) {
+                    viewModel.openDownloadDirectory()
+                }
+                .frame(width: 128, height: 32)
             }
-            .frame(width: 84, height: 32)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 10)
@@ -291,16 +338,12 @@ struct WallpaperGalleryView: View {
     }
 
     private var displayPreview: some View {
-        ZStack {
-            WallpaperPreviewView(
-                wallpaper: viewModel.selectedWallpaper,
-                height: 146,
-                cornerRadius: 0,
-                showsMetadata: false,
-                emptyTitle: copy.selectWallpaper
-            )
+        GeometryReader { proxy in
+            ZStack {
+                previewImage
+                    .frame(width: proxy.size.width, height: proxy.size.height)
+                    .clipped()
 
-            GeometryReader { proxy in
                 let displayRatio = CGFloat(viewModel.display.pixelWidth) / CGFloat(max(
                     viewModel.display.pixelHeight,
                     1
@@ -324,11 +367,34 @@ struct WallpaperGalleryView: View {
                     .position(x: proxy.size.width / 2, y: proxy.size.height / 2)
             }
         }
+        .frame(maxWidth: .infinity)
         .frame(height: 146)
         .background(Color.black)
+        .clipped()
         .overlay {
             Rectangle()
                 .stroke(.separator.opacity(0.45), lineWidth: 1)
+        }
+    }
+
+    @ViewBuilder
+    private var previewImage: some View {
+        switch viewModel.selectedSection {
+        case .online:
+            WallpaperPreviewView(
+                wallpaper: viewModel.selectedWallpaper,
+                height: 146,
+                cornerRadius: 0,
+                showsMetadata: false,
+                emptyTitle: copy.selectWallpaper
+            )
+        case .downloaded:
+            DownloadedWallpaperPreviewView(
+                wallpaper: viewModel.selectedDownloadedWallpaper,
+                height: 146,
+                cornerRadius: 0,
+                emptyTitle: copy.selectWallpaper
+            )
         }
     }
 
@@ -339,55 +405,7 @@ struct WallpaperGalleryView: View {
                 .foregroundStyle(.secondary)
 
             VStack(spacing: 9) {
-                if let wallpaper = viewModel.selectedWallpaper {
-                    VStack(spacing: 3) {
-                        Text(wallpaper.tagsPreview)
-                            .font(.system(size: 13, weight: .medium))
-                            .lineLimit(1)
-                            .frame(maxWidth: .infinity)
-
-                        Text(wallpaper.resolution)
-                            .font(.system(size: 12, weight: .semibold))
-                            .foregroundStyle(.secondary)
-                    }
-
-                    MacActionButton(
-                        viewModel.downloadedWallpaperURL == nil ? copy.download : copy.revealInFinder,
-                        isDisabled: viewModel.isDownloading
-                    ) {
-                        if let downloadedWallpaperURL = viewModel.downloadedWallpaperURL {
-                            NSWorkspace.shared.activateFileViewerSelecting([downloadedWallpaperURL])
-                        } else {
-                            viewModel.downloadSelectedWallpaper()
-                        }
-                    }
-                    .frame(height: 34)
-
-                    MacActionButton(
-                        viewModel.isSettingWallpaper ? copy.settingWallpaper : copy.setWallpaper,
-                        isDisabled: viewModel.isDownloading || viewModel.isSettingWallpaper
-                    ) {
-                        viewModel.setSelectedWallpaper()
-                    }
-                    .frame(height: 34)
-
-                    HStack(spacing: 10) {
-                        MacActionButton(copy.openPage) {
-                            NSWorkspace.shared.open(wallpaper.url)
-                        }
-                        .frame(height: 32)
-
-                        Text("\(wallpaper.category) / \(wallpaper.purity)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                } else {
-                    Text(copy.selectWallpaperFromGallery)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, minHeight: 86)
-                }
+                selectionPanelContent
             }
             .padding(12)
             .frame(maxWidth: .infinity)
@@ -397,6 +415,109 @@ struct WallpaperGalleryView: View {
                     .stroke(.separator.opacity(0.5), lineWidth: 1)
             }
         }
+    }
+
+    @ViewBuilder
+    private var selectionPanelContent: some View {
+        switch viewModel.selectedSection {
+        case .online:
+            onlineSelectionPanelContent
+        case .downloaded:
+            downloadedSelectionPanelContent
+        }
+    }
+
+    @ViewBuilder
+    private var onlineSelectionPanelContent: some View {
+        if let wallpaper = viewModel.selectedWallpaper {
+            VStack(spacing: 3) {
+                Text(wallpaper.tagsPreview)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+
+                Text(wallpaper.resolution)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            MacActionButton(
+                viewModel.downloadedWallpaperURL == nil ? copy.download : copy.revealInFinder,
+                isDisabled: viewModel.isDownloading
+            ) {
+                if let downloadedWallpaperURL = viewModel.downloadedWallpaperURL {
+                    NSWorkspace.shared.activateFileViewerSelecting([downloadedWallpaperURL])
+                } else {
+                    viewModel.downloadSelectedWallpaper()
+                }
+            }
+            .frame(height: 34)
+
+            MacActionButton(
+                viewModel.isSettingWallpaper ? copy.settingWallpaper : copy.setWallpaper,
+                isDisabled: viewModel.isDownloading || viewModel.isSettingWallpaper
+            ) {
+                viewModel.setSelectedWallpaper()
+            }
+            .frame(height: 34)
+
+            HStack(spacing: 10) {
+                MacActionButton(copy.openPage) {
+                    NSWorkspace.shared.open(wallpaper.url)
+                }
+                .frame(height: 32)
+
+                Text("\(wallpaper.category) / \(wallpaper.purity)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        } else {
+            selectionEmptyText
+        }
+    }
+
+    @ViewBuilder
+    private var downloadedSelectionPanelContent: some View {
+        if let wallpaper = viewModel.selectedDownloadedWallpaper {
+            VStack(spacing: 3) {
+                Text(wallpaper.displayName)
+                    .font(.system(size: 13, weight: .medium))
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity)
+
+                Text(wallpaper.displayResolution)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(copy.downloadedStatus)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, minHeight: 28)
+
+            MacActionButton(
+                viewModel.isSettingWallpaper ? copy.settingWallpaper : copy.setWallpaper,
+                isDisabled: viewModel.isSettingWallpaper || viewModel.isDeletingDownloadedWallpaper
+            ) {
+                viewModel.setSelectedDownloadedWallpaper()
+            }
+            .frame(height: 34)
+
+            MacActionButton(copy.showInFinder) {
+                viewModel.revealSelectedDownloadedWallpaper()
+            }
+            .frame(height: 32)
+        } else {
+            selectionEmptyText
+        }
+    }
+
+    private var selectionEmptyText: some View {
+        Text(copy.selectWallpaperFromGallery)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 86)
     }
 
     @ViewBuilder
