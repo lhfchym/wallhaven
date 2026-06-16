@@ -4,6 +4,9 @@ import WallhavenCore
 
 struct WallpaperPreviewView: View {
     let wallpaper: WallhavenWallpaper?
+    var height: CGFloat = 150
+    var cornerRadius: CGFloat = 6
+    var showsMetadata = true
 
     @State private var image: NSImage?
     @State private var imageWallpaperID: String?
@@ -14,22 +17,38 @@ struct WallpaperPreviewView: View {
         Group {
             if let wallpaper {
                 previewContent
-                .frame(maxWidth: .infinity, minHeight: 150, maxHeight: 150)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                .allowsHitTesting(false)
-                .overlay(alignment: .bottomLeading) {
-                    Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
-                        .font(.caption2)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 5)
-                        .foregroundStyle(.white)
-                        .background(.black.opacity(0.56), in: Capsule())
-                        .padding(8)
-                }
-                .task(id: wallpaper.id) {
-                    await loadPreview(for: wallpaper)
-                }
+                    .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
+                    .clipped()
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .allowsHitTesting(false)
+                    .overlay(alignment: .bottomLeading) {
+                        if showsMetadata {
+                            Text("\(wallpaper.resolution) - \(formattedFileSize(wallpaper.fileSize))")
+                                .font(.caption2)
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 5)
+                                .foregroundStyle(.white)
+                                .background(.black.opacity(0.56), in: Capsule())
+                                .padding(8)
+                        }
+                    }
+                    .task(id: wallpaper.id) {
+                        await loadPreview(for: wallpaper)
+                    }
+            } else {
+                Rectangle()
+                    .fill(.quaternary)
+                    .frame(maxWidth: .infinity, minHeight: height, maxHeight: height)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+                    .overlay {
+                        VStack(spacing: 8) {
+                            Image(systemName: "photo.on.rectangle")
+                                .font(.system(size: 24, weight: .regular))
+                            Text("选择一张壁纸")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
             }
         }
     }

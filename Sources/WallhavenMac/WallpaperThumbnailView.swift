@@ -14,22 +14,34 @@ struct WallpaperThumbnailView: View {
     var body: some View {
         Button(action: action) {
             thumbnailContent
-            .frame(height: 92)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
-            .overlay(alignment: .bottomLeading) {
-                Text(wallpaper.resolution)
-                    .font(.caption2)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
-                    .foregroundStyle(.white)
-                    .background(.black.opacity(0.54), in: Capsule())
-                    .padding(6)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 3)
-            }
-            .contentShape(RoundedRectangle(cornerRadius: 6))
+                .aspectRatio(16 / 9, contentMode: .fit)
+                .clipShape(Rectangle())
+                .overlay(alignment: .topLeading) {
+                    if isSelected {
+                        Text(wallpaper.tagsPreview)
+                            .font(.system(size: 13, weight: .semibold))
+                            .lineLimit(1)
+                            .foregroundStyle(.white)
+                            .shadow(radius: 2)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                    }
+                }
+                .overlay(alignment: .bottomTrailing) {
+                    Text(wallpaper.resolution)
+                        .font(.caption2)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 4)
+                        .foregroundStyle(.white)
+                        .background(.black.opacity(0.58), in: Capsule())
+                        .padding(6)
+                }
+                .overlay {
+                    Rectangle()
+                        .stroke(isSelected ? Color.accentColor : .clear, lineWidth: 3)
+                }
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .help("#\(wallpaper.id) - \(wallpaper.category) - \(wallpaper.purity)")
@@ -89,5 +101,11 @@ struct WallpaperThumbnailView: View {
             "thumb_original": wallpaper.thumbs.original.absoluteString,
             "thumb_small": wallpaper.thumbs.small.absoluteString
         ]
+    }
+}
+
+private extension WallhavenWallpaper {
+    var tagsPreview: String {
+        source.isEmpty ? "#\(id)" : source
     }
 }
