@@ -5,22 +5,25 @@ struct WallhavenSettingsView: View {
     @State private var apiKey: String
     @State private var downloadDirectoryPath: String
     @State private var strictAspectRatio: Bool
+    @State private var language: WallhavenLanguage
 
     let defaultDownloadDirectoryURL: URL?
-    let onSave: (String, String?, Bool) -> Void
+    let onSave: (String, String?, Bool, WallhavenLanguage) -> Void
     let onCancel: () -> Void
 
     init(
         apiKey: String,
         downloadDirectoryPath: String?,
         strictAspectRatio: Bool,
+        language: WallhavenLanguage,
         defaultDownloadDirectoryURL: URL?,
-        onSave: @escaping (String, String?, Bool) -> Void,
+        onSave: @escaping (String, String?, Bool, WallhavenLanguage) -> Void,
         onCancel: @escaping () -> Void
     ) {
         _apiKey = State(initialValue: apiKey)
         _downloadDirectoryPath = State(initialValue: downloadDirectoryPath ?? "")
         _strictAspectRatio = State(initialValue: strictAspectRatio)
+        _language = State(initialValue: language)
         self.defaultDownloadDirectoryURL = defaultDownloadDirectoryURL
         self.onSave = onSave
         self.onCancel = onCancel
@@ -28,31 +31,44 @@ struct WallhavenSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Settings")
+            Text(copy.settingsTitle)
                 .font(.headline)
 
-            SecureField("wallhaven API key", text: $apiKey)
+            Text(copy.languageTitle)
+                .font(.subheadline)
+                .fontWeight(.medium)
+
+            Picker(copy.languageTitle, selection: $language) {
+                ForEach(WallhavenLanguage.allCases) { language in
+                    Text(language.label).tag(language)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            Divider()
+
+            SecureField(copy.apiKeyPlaceholder, text: $apiKey)
                 .textFieldStyle(.roundedBorder)
 
-            Text("Stored in macOS Keychain. Required for NSFW results and account-specific wallhaven settings.")
+            Text(copy.apiKeyHelp)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             Divider()
 
-            Text("Download Folder")
+            Text(copy.downloadFolderTitle)
                 .font(.subheadline)
                 .fontWeight(.medium)
 
             HStack(spacing: 8) {
-                TextField("Default Pictures/WallhavenMac", text: $downloadDirectoryPath)
+                TextField(copy.defaultDownloadFolder, text: $downloadDirectoryPath)
                     .textFieldStyle(.roundedBorder)
 
-                Button("Choose...") {
+                Button(copy.choose) {
                     chooseDownloadDirectory()
                 }
 
-                Button("Default") {
+                Button(copy.useDefault) {
                     downloadDirectoryPath = ""
                 }
             }
@@ -65,27 +81,31 @@ struct WallhavenSettingsView: View {
 
             Divider()
 
-            Toggle("Strict aspect ratio", isOn: $strictAspectRatio)
+            Toggle(copy.strictAspectRatio, isOn: $strictAspectRatio)
 
-            Text("When enabled, searches only return wallpapers matching this display's exact ratio.")
+            Text(copy.strictAspectRatioHelp)
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             HStack {
                 Spacer()
 
-                Button("Cancel") {
+                Button(copy.cancel) {
                     onCancel()
                 }
 
-                Button("Save") {
-                    onSave(apiKey, normalizedDownloadDirectoryPath, strictAspectRatio)
+                Button(copy.save) {
+                    onSave(apiKey, normalizedDownloadDirectoryPath, strictAspectRatio, language)
                 }
                 .keyboardShortcut(.defaultAction)
             }
         }
         .padding(18)
         .frame(width: 520)
+    }
+
+    private var copy: WallhavenCopy {
+        WallhavenCopy(language: language)
     }
 
     private var normalizedDownloadDirectoryPath: String? {
@@ -98,7 +118,7 @@ struct WallhavenSettingsView: View {
             return normalizedDownloadDirectoryPath
         }
 
-        return defaultDownloadDirectoryURL?.path ?? "Default Pictures/WallhavenMac"
+        return defaultDownloadDirectoryURL?.path ?? copy.defaultDownloadFolder
     }
 
     private func chooseDownloadDirectory() {
@@ -107,7 +127,7 @@ struct WallhavenSettingsView: View {
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.canCreateDirectories = true
-        panel.prompt = "Choose"
+        panel.prompt = copy.choosePanelPrompt
 
         if let normalizedDownloadDirectoryPath {
             panel.directoryURL = URL(fileURLWithPath: normalizedDownloadDirectoryPath, isDirectory: true)

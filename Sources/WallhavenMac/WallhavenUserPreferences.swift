@@ -9,6 +9,7 @@ struct WallhavenUserPreferences: Equatable, Sendable {
     var purity: WallhavenPurityPreset
     var sorting: WallhavenSorting
     var strictAspectRatio: Bool
+    var language: WallhavenLanguage
 
     init(
         apiKey: String = "",
@@ -17,7 +18,8 @@ struct WallhavenUserPreferences: Equatable, Sendable {
         categories: WallhavenCategoryPreset = .general,
         purity: WallhavenPurityPreset = .sfw,
         sorting: WallhavenSorting = .random,
-        strictAspectRatio: Bool = false
+        strictAspectRatio: Bool = false,
+        language: WallhavenLanguage = .chinese
     ) {
         self.apiKey = apiKey
         self.query = query
@@ -26,11 +28,28 @@ struct WallhavenUserPreferences: Equatable, Sendable {
         self.purity = purity
         self.sorting = sorting
         self.strictAspectRatio = strictAspectRatio
+        self.language = language
     }
 
     var downloadDirectoryURL: URL? {
         guard let downloadDirectoryPath, !downloadDirectoryPath.isEmpty else { return nil }
         return URL(fileURLWithPath: downloadDirectoryPath, isDirectory: true)
+    }
+}
+
+enum WallhavenLanguage: String, CaseIterable, Identifiable, Sendable {
+    case chinese = "zh-Hans"
+    case english = "en"
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .chinese:
+            "中文"
+        case .english:
+            "English"
+        }
     }
 }
 
@@ -112,6 +131,7 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         static let purity = "wallhaven.purity"
         static let sorting = "wallhaven.sorting"
         static let strictAspectRatio = "wallhaven.strictAspectRatio"
+        static let language = "wallhaven.language"
     }
 
     private let defaults: UserDefaults
@@ -135,6 +155,8 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         let sorting = defaults.string(forKey: Keys.sorting)
             .flatMap(WallhavenSorting.init(rawValue:)) ?? .random
         let strictAspectRatio = defaults.bool(forKey: Keys.strictAspectRatio)
+        let language = defaults.string(forKey: Keys.language)
+            .flatMap(WallhavenLanguage.init(rawValue:)) ?? .chinese
 
         return WallhavenUserPreferences(
             apiKey: apiKeyStore.loadAPIKey(),
@@ -143,7 +165,8 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
             categories: categories,
             purity: purity,
             sorting: sorting,
-            strictAspectRatio: strictAspectRatio
+            strictAspectRatio: strictAspectRatio,
+            language: language
         )
     }
 
@@ -159,5 +182,6 @@ actor WallhavenUserPreferencesStore: WallhavenUserPreferencesStoring {
         defaults.set(preferences.purity.rawValue, forKey: Keys.purity)
         defaults.set(preferences.sorting.rawValue, forKey: Keys.sorting)
         defaults.set(preferences.strictAspectRatio, forKey: Keys.strictAspectRatio)
+        defaults.set(preferences.language.rawValue, forKey: Keys.language)
     }
 }

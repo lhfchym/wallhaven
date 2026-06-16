@@ -7,6 +7,7 @@ struct WallpaperPreviewView: View {
     var height: CGFloat = 150
     var cornerRadius: CGFloat = 6
     var showsMetadata = true
+    var emptyTitle = "Select a wallpaper"
 
     @State private var image: NSImage?
     @State private var imageWallpaperID: String?
@@ -44,7 +45,7 @@ struct WallpaperPreviewView: View {
                         VStack(spacing: 8) {
                             Image(systemName: "photo.on.rectangle")
                                 .font(.system(size: 24, weight: .regular))
-                            Text("选择一张壁纸")
+                            Text(emptyTitle)
                                 .font(.caption)
                         }
                         .foregroundStyle(.secondary)

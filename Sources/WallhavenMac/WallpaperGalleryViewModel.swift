@@ -49,7 +49,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
 
     var statusText: String {
         if let meta {
-            return "\(wallpapers.count) of \(meta.total) - \(displayMatchingStatus)"
+            return copy.status(
+                count: wallpapers.count,
+                total: meta.total,
+                displayMatchingStatus: displayMatchingStatus
+            )
         }
 
         return displayMatchingStatus
@@ -106,11 +110,17 @@ final class WallpaperGalleryViewModel: ObservableObject {
         }
     }
 
-    func updateSettings(apiKey: String, downloadDirectoryPath: String?, strictAspectRatio: Bool) {
+    func updateSettings(
+        apiKey: String,
+        downloadDirectoryPath: String?,
+        strictAspectRatio: Bool,
+        language: WallhavenLanguage
+    ) {
         preferences.apiKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         preferences.downloadDirectoryPath = downloadDirectoryPath?.trimmingCharacters(in: .whitespacesAndNewlines)
         let didChangeAspectRatioMode = preferences.strictAspectRatio != strictAspectRatio
         preferences.strictAspectRatio = strictAspectRatio
+        preferences.language = language
 
         Task {
             await saveCurrentPreferences()
@@ -134,11 +144,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
                 let directoryURL = try await fileStore.ensureDownloadDirectory()
                 downloadDirectoryURL = directoryURL
                 NSWorkspace.shared.open(directoryURL)
-                successMessage = "Opened download folder."
+                successMessage = copy.openedDownloadFolder
                 errorMessage = nil
             } catch {
                 successMessage = nil
-                errorMessage = "Open folder failed: \(readableMessage(for: error))"
+                errorMessage = "\(copy.openFolderFailedPrefix)\(readableMessage(for: error))"
                 WallhavenDebugLog.recordError(
                     "Open download folder failed",
                     error: error,
@@ -247,12 +257,12 @@ private extension WallpaperGalleryViewModel {
         do {
             downloadedWallpaperURL = try await fileStore.downloadedURL(for: wallpaper)
             if let downloadedWallpaperURL {
-                successMessage = "Download succeeded: \(downloadedWallpaperURL.lastPathComponent)"
+                successMessage = "\(copy.downloadSucceededPrefix)\(downloadedWallpaperURL.lastPathComponent)"
             } else {
-                successMessage = "Download succeeded: #\(wallpaper.id)."
+                successMessage = "\(copy.downloadSucceededIDPrefix)\(wallpaper.id)."
             }
         } catch {
-            errorMessage = "Download failed: \(readableMessage(for: error))"
+            errorMessage = "\(copy.downloadFailedPrefix)\(readableMessage(for: error))"
             WallhavenDebugLog.recordError(
                 "Wallpaper download failed",
                 error: error,
@@ -281,10 +291,10 @@ private extension WallpaperGalleryViewModel {
 
             try wallpaperSetter.setDesktopWallpaper(at: imageURL)
             await historyStore.recordSet(wallpaper)
-            successMessage = "Set #\(wallpaper.id) as wallpaper."
+            successMessage = copy.setWallpaperSucceeded(id: wallpaper.id)
         } catch {
             isDownloading = false
-            errorMessage = readableMessage(for: error)
+            errorMessage = "\(copy.setWallpaperFailedPrefix)\(readableMessage(for: error))"
             WallhavenDebugLog.recordError(
                 "Set desktop wallpaper failed",
                 error: error,
@@ -311,9 +321,14 @@ private extension WallpaperGalleryViewModel {
         preferences.query = query.trimmingCharacters(in: .whitespacesAndNewlines)
         await preferencesStore.save(preferences)
     }
+
     func configureDownloadDirectory() async {
         await fileStore.setDownloadDirectory(preferences.downloadDirectoryURL)
         downloadDirectoryURL = await fileStore.downloadDirectory()
+    }
+
+    var copy: WallhavenCopy {
+        WallhavenCopy(language: preferences.language)
     }
 
     var displayMatchingStatus: String {
