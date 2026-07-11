@@ -91,7 +91,7 @@ ApplicationWindow {
         }
         popup: Popup {
             y: combo.height - 1
-            width: combo.width
+            width: Math.max(combo.width, 184)
             implicitHeight: contentItem.implicitHeight
             padding: 2
             contentItem: ListView {
@@ -103,7 +103,7 @@ ApplicationWindow {
             background: Bevel { sunken: true }
         }
         delegate: ItemDelegate {
-            width: combo.width - 4
+            width: combo.popup.width - 4
             height: 28
             contentItem: Text {
                 text: modelData
