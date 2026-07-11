@@ -19,6 +19,7 @@
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
+#include <KWallet>
 
 namespace {
 constexpr auto kUserAgent = "WallhavenLinux/0.1 (Kubuntu Plasma)";
@@ -32,7 +33,6 @@ WallpaperController::WallpaperController(QObject *parent)
     m_purity = settings.value("search/purity", "sfw").toString();
     m_sorting = settings.value("search/sorting", "toplist").toString();
     m_legacyApiKey = settings.value("account/apiKey").toString();
-    settings.remove("account/apiKey");
     m_strictAspectRatio = settings.value("search/strictAspectRatio", false).toBool();
     m_downloadDirectory = settings.value("storage/downloadDirectory").toString();
     m_language = settings.value("ui/language", "zh-Hans").toString();
@@ -43,7 +43,7 @@ WallpaperController::WallpaperController(QObject *parent)
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, [this] {
         updateDisplayResolution();
     });
-    QTimer::singleShot(0, this, [this] { loadApiKeyFromKWallet(); });
+    loadApiKeyFromKWallet();
 }
 
 QVariantList WallpaperController::wallpapers() const { return m_wallpapers; }
@@ -586,32 +586,36 @@ void WallpaperController::persistPreferences() {
 }
 
 void WallpaperController::loadApiKeyFromKWallet() {
-    auto *wallet = new QProcess(this);
-    connect(wallet, &QProcess::finished, this, [this, wallet](int exitCode, QProcess::ExitStatus exitStatus) {
-        const QString storedKey = QString::fromUtf8(wallet->readAllStandardOutput()).trimmed();
-        if (exitStatus == QProcess::NormalExit && exitCode == 0 && !storedKey.isEmpty()) {
-            m_apiKey = storedKey;
-            emit apiKeyChanged();
-        } else if (!m_legacyApiKey.isEmpty()) {
-            m_apiKey = m_legacyApiKey;
-            m_legacyApiKey.clear();
-            emit apiKeyChanged();
-            saveApiKeyToKWallet();
-        }
-        wallet->deleteLater();
-    });
-    wallet->start("kwallet-query", {"--folder", "WallhavenLinux", "--read-password", "apiKey", "kdewallet"});
+    auto *wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0);
+    if (!wallet) {
+        m_apiKey = m_legacyApiKey;
+        return;
+    }
+    if (!wallet->hasFolder("WallhavenLinux")) wallet->createFolder("WallhavenLinux");
+    QString storedKey;
+    if (wallet->setFolder("WallhavenLinux") && wallet->readPassword("apiKey", storedKey) == 0 && !storedKey.isEmpty()) {
+        m_apiKey = storedKey;
+    } else if (!m_legacyApiKey.isEmpty()) {
+        m_apiKey = m_legacyApiKey;
+        saveApiKeyToKWallet();
+    }
+    delete wallet;
+    emit apiKeyChanged();
 }
 
 void WallpaperController::saveApiKeyToKWallet() {
-    auto *wallet = new QProcess(this);
-    connect(wallet, &QProcess::finished, this, [this, wallet](int exitCode, QProcess::ExitStatus exitStatus) {
-        if (exitStatus != QProcess::NormalExit || exitCode != 0) {
-            setErrorMessage(localized("无法保存 API Key 到 KDE Wallet。", "Unable to save the API key to KDE Wallet."));
-        }
-        wallet->deleteLater();
-    });
-    wallet->start("kwallet-query", {"--folder", "WallhavenLinux", "--write-password", "apiKey", "kdewallet"});
-    wallet->write(m_apiKey.toUtf8());
-    wallet->closeWriteChannel();
+    auto *wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0);
+    if (!wallet) {
+        setErrorMessage(localized("无法打开 KDE Wallet。", "Unable to open KDE Wallet."));
+        return;
+    }
+    if (!wallet->hasFolder("WallhavenLinux") && !wallet->createFolder("WallhavenLinux")) {
+        setErrorMessage(localized("无法创建 KDE Wallet 存储区。", "Unable to create the KDE Wallet storage folder."));
+    } else if (!wallet->setFolder("WallhavenLinux") || wallet->writePassword("apiKey", m_apiKey) != 0) {
+        setErrorMessage(localized("无法保存 API Key 到 KDE Wallet。", "Unable to save the API key to KDE Wallet."));
+    } else {
+        QSettings().remove("account/apiKey");
+        setErrorMessage({});
+    }
+    delete wallet;
 }

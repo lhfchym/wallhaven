@@ -7,6 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Network Qml Quick QuickControls2 DBus)
+find_package(KF6Wallet REQUIRED)
 
 qt_standard_project_setup(REQUIRES 6.5)
 
@@ -32,6 +33,7 @@ target_link_libraries(WallhavenLinux
         Qt6::Quick
         Qt6::QuickControls2
         Qt6::DBus
+        KF6::Wallet
 )
 
 install(TARGETS WallhavenLinux BUNDLE DESTINATION . RUNTIME DESTINATION bin)
