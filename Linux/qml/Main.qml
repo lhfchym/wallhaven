@@ -295,6 +295,11 @@ ApplicationWindow {
                     cellWidth: 188
                     cellHeight: 152
                     model: controller.wallpapers
+                    onContentYChanged: {
+                        if (controller.section === "online" && contentY + height >= contentHeight - cellHeight * 1.5) {
+                            controller.loadNextPage()
+                        }
+                    }
                     delegate: Item {
                         required property var modelData
                         required property int index
