@@ -10,7 +10,7 @@ ApplicationWindow {
     minimumWidth: 1060
     minimumHeight: 660
     visible: true
-    title: "Wallhaven Linux — Bluecurve Edition"
+    title: window.t("Wallhaven Linux — 蓝色曲线版", "Wallhaven Linux — Bluecurve Edition")
 
     WallpaperController {
         id: controller
@@ -19,6 +19,10 @@ ApplicationWindow {
     property int selectedIndex: controller.wallpapers.length > 0 ? 0 : -1
     property var selectedWallpaper: selectedIndex >= 0 ? controller.wallpapers[selectedIndex] : null
     onVisibleChanged: if (visible) controller.refreshDesktopCapability()
+
+    function t(chinese, english) {
+        return controller.language === "en" ? english : chinese
+    }
 
     function submitCurrentSearch() {
         const categories = ["general", "anime", "people", "all"]
@@ -57,6 +61,7 @@ ApplicationWindow {
 
     component BlueButton: Button {
         id: button
+        property bool selected: false
         implicitHeight: 30
         implicitWidth: 94
         font.bold: true
@@ -71,7 +76,7 @@ ApplicationWindow {
         }
         background: Bevel {
             sunken: button.down
-            color: button.hovered ? "#dce8f3" : bluecurve.base
+            color: button.selected ? "#9cc8ee" : (button.hovered ? "#dce8f3" : bluecurve.base)
             opacity: button.enabled ? 1 : 0.65
         }
     }
@@ -161,7 +166,7 @@ ApplicationWindow {
                     styleColor: "#12365f"
                 }
                 Text {
-                    text: "KDE Plasma Wayland · Bluecurve Edition"
+                    text: "KDE Plasma Wayland · " + window.t("蓝色曲线版", "Bluecurve Edition")
                     color: "#dcecff"
                     font.pixelSize: 12
                 }
@@ -191,7 +196,7 @@ ApplicationWindow {
                     id: searchField
                     Layout.fillWidth: true
                     implicitHeight: 30
-                    placeholderText: "搜索壁纸，例如：城市、山脉、赛博朋克"
+                    placeholderText: window.t("搜索壁纸，例如：城市、山脉、赛博朋克", "Search wallpapers, e.g. city, mountains, cyberpunk")
                     selectByMouse: true
                     font.pixelSize: 13
                     background: Bevel { sunken: true; color: "white" }
@@ -199,22 +204,22 @@ ApplicationWindow {
                 }
                 BlueCombo {
                     id: categoryBox
-                    model: ["General", "Anime", "People", "All"]
+                    model: [window.t("普通", "General"), window.t("动漫", "Anime"), window.t("人物", "People"), window.t("全部", "All")]
                     onActivated: window.submitCurrentSearch()
                 }
                 BlueCombo {
                     id: purityBox
-                    model: ["SFW", "SFW + Sketchy"]
+                    model: ["SFW", window.t("安全 + 擦边", "SFW + Sketchy")]
                     onActivated: window.submitCurrentSearch()
                 }
                 BlueCombo {
                     id: sortingBox
-                    model: ["热门", "最新", "收藏排行", "随机", "浏览量", "相关性"]
+                    model: [window.t("热门", "Toplist"), window.t("最新", "Latest"), window.t("收藏排行", "Favorites"), window.t("随机", "Random"), window.t("浏览量", "Views"), window.t("相关性", "Relevance")]
                     onActivated: window.submitCurrentSearch()
                 }
                 BlueButton {
                     id: searchButton
-                    text: controller.searching ? "搜索中…" : "搜索"
+                    text: controller.searching ? window.t("搜索中…", "Searching…") : window.t("搜索", "Search")
                     enabled: !controller.searching
                     onClicked: window.submitCurrentSearch()
                 }
@@ -233,22 +238,22 @@ ApplicationWindow {
                     anchors.fill: parent
                     anchors.margins: 9
                     spacing: 8
-                    Text { text: "浏览"; font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
+                    Text { text: window.t("浏览", "Browse"); font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
-                    BlueButton { Layout.fillWidth: true; text: "✦  热门"; onClicked: { sortingBox.currentIndex = 0; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; text: "◷  最新"; onClicked: { sortingBox.currentIndex = 1; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; text: "☆  收藏排行"; onClicked: { sortingBox.currentIndex = 2; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; text: "⇩  已下载"; onClicked: controller.showSection("downloaded") }
+                    BlueButton { Layout.fillWidth: true; text: "✦  " + window.t("热门", "Toplist"); onClicked: { sortingBox.currentIndex = 0; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; text: "◷  " + window.t("最新", "Latest"); onClicked: { sortingBox.currentIndex = 1; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; text: "☆  " + window.t("收藏排行", "Favorites"); onClicked: { sortingBox.currentIndex = 2; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; text: "⇩  " + window.t("已下载", "Downloaded"); onClicked: controller.showSection("downloaded") }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
-                    Text { text: "桌面集成"; font.bold: true; color: bluecurve.text }
+                    Text { text: window.t("桌面集成", "Desktop Integration"); font.bold: true; color: bluecurve.text }
                     RowLayout {
                         Layout.fillWidth: true
                         Rectangle { width: 10; height: 10; radius: 5; color: controller.plasmaAvailable ? "#2f8a38" : "#b0392e" }
-                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: controller.plasmaAvailable ? "Plasma 壁纸服务可用" : "Plasma 服务未检测到"; font.pixelSize: 12 }
+                        Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: controller.plasmaAvailable ? window.t("Plasma 壁纸服务可用", "Plasma wallpaper service is ready") : window.t("Plasma 服务未检测到", "Plasma service was not detected"); font.pixelSize: 12 }
                     }
-                    BlueButton { Layout.fillWidth: true; text: "重新检测"; onClicked: controller.refreshDesktopCapability() }
+                    BlueButton { Layout.fillWidth: true; text: window.t("重新检测", "Recheck"); onClicked: controller.refreshDesktopCapability() }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
-                    Text { text: "下载库"; font.bold: true; color: bluecurve.text }
+                    Text { text: window.t("下载库", "Library"); font.bold: true; color: bluecurve.text }
                     Text {
                         Layout.fillWidth: true
                         text: controller.downloadDirectory
@@ -256,20 +261,21 @@ ApplicationWindow {
                         color: "#35495d"
                         font.pixelSize: 11
                     }
-                    BlueButton { Layout.fillWidth: true; text: "打开下载目录"; onClicked: controller.openDownloadDirectory() }
+                    BlueButton { Layout.fillWidth: true; text: window.t("打开下载目录", "Open download folder"); onClicked: controller.openDownloadDirectory() }
                     BlueButton {
                         Layout.fillWidth: true
-                        text: "⚙  设置"
+                        text: "⚙  " + window.t("设置", "Settings")
                         onClicked: {
                             apiKeyField.text = controller.apiKey
                             strictRatioCheck.checked = controller.strictAspectRatio
+                            settingsPopup.pendingLanguage = controller.language
                             settingsPopup.open()
                         }
                     }
                     Item { Layout.fillHeight: true }
                     Text {
                         Layout.fillWidth: true
-                        text: controller.section === "downloaded" ? "右键或使用下方删除按钮管理本地壁纸。" : "当前会将壁纸应用到 Plasma 会话的所有桌面。"
+                        text: controller.section === "downloaded" ? window.t("使用下方删除按钮管理本地壁纸。", "Use the Delete button below to manage local wallpapers.") : window.t("当前会将壁纸应用到 Plasma 会话的所有桌面。", "Wallpaper changes apply to all desktops in this Plasma session.")
                         wrapMode: Text.Wrap
                         color: "#4d5964"
                         font.pixelSize: 11
@@ -332,7 +338,7 @@ ApplicationWindow {
                 Text {
                     anchors.centerIn: parent
                     visible: !controller.searching && controller.wallpapers.length === 0
-                    text: controller.section === "downloaded" ? "下载库为空" : "搜索 Wallhaven，结果会显示在这里"
+                    text: controller.section === "downloaded" ? window.t("下载库为空", "The download library is empty") : window.t("搜索 Wallhaven，结果会显示在这里", "Search Wallhaven to see wallpapers here")
                     color: "#455768"
                     font.pixelSize: 15
                 }
@@ -346,7 +352,7 @@ ApplicationWindow {
                     anchors.fill: parent
                     anchors.margins: 9
                     spacing: 8
-                    Text { text: controller.section === "downloaded" ? "下载壁纸预览" : "显示器结构预览"; font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
+                    Text { text: controller.section === "downloaded" ? window.t("下载壁纸预览", "Downloaded wallpaper preview") : window.t("显示器结构预览", "Display preview"); font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
                     Rectangle {
                         Layout.fillWidth: true
@@ -364,14 +370,14 @@ ApplicationWindow {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: selectedWallpaper ? "#" + selectedWallpaper.id : "未选择壁纸"
+                        text: selectedWallpaper ? "#" + selectedWallpaper.id : window.t("未选择壁纸", "No wallpaper selected")
                         color: bluecurve.text
                         font.bold: true
                         font.pixelSize: 15
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: selectedWallpaper ? selectedWallpaper.resolution + " · " + selectedWallpaper.category + " · " + selectedWallpaper.purity : "选择一张壁纸以查看详情。"
+                        text: selectedWallpaper ? selectedWallpaper.resolution + " · " + selectedWallpaper.category + " · " + selectedWallpaper.purity : window.t("选择一张壁纸以查看详情。", "Select a wallpaper to view its details.")
                         wrapMode: Text.Wrap
                         color: "#384b5f"
                         font.pixelSize: 12
@@ -379,19 +385,19 @@ ApplicationWindow {
                     Item { Layout.fillHeight: true }
                     BlueButton {
                         Layout.fillWidth: true
-                        text: controller.section === "downloaded" ? "在文件管理器中打开" : (controller.downloading ? "下载中…" : "下载")
+                        text: controller.section === "downloaded" ? window.t("在文件管理器中打开", "Open in file manager") : (controller.downloading ? window.t("下载中…", "Downloading…") : window.t("下载", "Download"))
                         enabled: selectedIndex >= 0 && !controller.downloading
                         onClicked: controller.section === "downloaded" ? controller.openDownloadDirectory() : controller.download(selectedIndex)
                     }
                     BlueButton {
                         Layout.fillWidth: true
-                        text: "设为桌面壁纸"
+                        text: window.t("设为桌面壁纸", "Set as wallpaper")
                         enabled: selectedIndex >= 0 && !controller.downloading && controller.plasmaAvailable
                         onClicked: controller.setWallpaper(selectedIndex)
                     }
                     BlueButton {
                         Layout.fillWidth: true
-                        text: controller.section === "downloaded" ? "删除此壁纸" : "打开页面"
+                        text: controller.section === "downloaded" ? window.t("删除此壁纸", "Delete wallpaper") : window.t("打开页面", "Open page")
                         enabled: selectedIndex >= 0 && !controller.downloading
                         onClicked: controller.section === "downloaded" ? controller.deleteDownloaded(selectedIndex) : controller.openPage(selectedIndex)
                     }
@@ -419,13 +425,13 @@ ApplicationWindow {
             spacing: 8
             Text {
                 Layout.fillWidth: true
-                text: controller.section === "downloaded" ? "下载库" : "在线图库"
+                text: controller.section === "downloaded" ? window.t("下载库", "Download library") : window.t("在线图库", "Online gallery")
                 color: bluecurve.darkBlue
                 font.bold: true
             }
-            BlueButton { text: "刷新"; enabled: !controller.searching; onClicked: controller.refresh() }
+            BlueButton { text: window.t("刷新", "Refresh"); enabled: !controller.searching; onClicked: controller.refresh() }
             BlueButton {
-                text: "下一页"
+                text: window.t("下一页", "Next page")
                 visible: controller.section === "online"
                 enabled: controller.canLoadMore && !controller.searching
                 onClicked: controller.loadNextPage()
@@ -442,6 +448,7 @@ ApplicationWindow {
 
     Popup {
         id: settingsPopup
+        property string pendingLanguage: controller.language
         anchors.centerIn: Overlay.overlay
         modal: true
         focus: true
@@ -452,35 +459,51 @@ ApplicationWindow {
             anchors.fill: parent
             anchors.margins: 12
             spacing: 9
-            Text { text: "设置"; color: bluecurve.darkBlue; font.bold: true; font.pixelSize: 18 }
+            Text { text: window.t("设置", "Settings"); color: bluecurve.darkBlue; font.bold: true; font.pixelSize: 18 }
+            Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
+            Text { text: window.t("语言", "Language"); color: bluecurve.text; font.bold: true }
+            RowLayout {
+                spacing: 6
+                BlueButton {
+                    text: "中文"
+                    selected: settingsPopup.pendingLanguage === "zh-Hans"
+                    onClicked: settingsPopup.pendingLanguage = "zh-Hans"
+                }
+                BlueButton {
+                    text: "English"
+                    selected: settingsPopup.pendingLanguage === "en"
+                    onClicked: settingsPopup.pendingLanguage = "en"
+                }
+            }
             Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
             Text { text: "Wallhaven API Key"; color: bluecurve.text; font.bold: true }
             TextField {
                 id: apiKeyField
                 Layout.fillWidth: true
                 echoMode: TextInput.Password
-                placeholderText: "可选：NSFW 与账户相关筛选需要 API Key"
+                placeholderText: window.t("可选：NSFW 与账户相关筛选需要 API Key", "Optional: required for NSFW and account-specific results")
                 background: Bevel { sunken: true; color: "white" }
             }
-            Text { text: "下载目录"; color: bluecurve.text; font.bold: true }
+            Text { text: window.t("下载目录", "Download folder"); color: bluecurve.text; font.bold: true }
             Text { Layout.fillWidth: true; text: controller.downloadDirectory; wrapMode: Text.WrapAnywhere; font.pixelSize: 11; color: "#35495d" }
-            BlueButton { text: "选择目录…"; onClicked: controller.chooseDownloadDirectory() }
+            BlueButton { text: window.t("选择目录…", "Choose folder…"); onClicked: controller.chooseDownloadDirectory() }
             CheckBox {
                 id: strictRatioCheck
-                text: "只显示与当前显示器相同宽高比的壁纸"
+                text: window.t("只显示与当前显示器相同宽高比的壁纸", "Only show wallpapers matching this display's aspect ratio")
                 font.pixelSize: 12
             }
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                BlueButton { text: "取消"; onClicked: settingsPopup.close() }
+                BlueButton { text: window.t("取消", "Cancel"); onClicked: settingsPopup.close() }
                 BlueButton {
-                    text: "保存"
+                    text: window.t("保存", "Save")
                     onClicked: {
                         controller.setApiKey(apiKeyField.text)
                         controller.setStrictAspectRatio(strictRatioCheck.checked)
+                        controller.setLanguage(settingsPopup.pendingLanguage)
                         settingsPopup.close()
-                        if (controller.section === "online") controller.refresh()
+                        controller.refresh()
                     }
                 }
             }

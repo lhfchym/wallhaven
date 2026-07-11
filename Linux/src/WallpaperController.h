@@ -22,6 +22,7 @@ class WallpaperController : public QObject {
     Q_PROPERTY(bool canLoadMore READ canLoadMore NOTIFY paginationChanged)
     Q_PROPERTY(QString apiKey READ apiKey NOTIFY apiKeyChanged)
     Q_PROPERTY(bool strictAspectRatio READ strictAspectRatio NOTIFY strictAspectRatioChanged)
+    Q_PROPERTY(QString language READ language NOTIFY languageChanged)
 
 public:
     explicit WallpaperController(QObject *parent = nullptr);
@@ -38,6 +39,7 @@ public:
     bool canLoadMore() const;
     QString apiKey() const;
     bool strictAspectRatio() const;
+    QString language() const;
 
     Q_INVOKABLE void search(const QString &query, const QString &category, const QString &purity, const QString &sorting);
     Q_INVOKABLE void download(int index, bool setWhenFinished = false);
@@ -53,6 +55,7 @@ public:
     Q_INVOKABLE void setDownloadDirectory(const QUrl &directory);
     Q_INVOKABLE void chooseDownloadDirectory();
     Q_INVOKABLE void setStrictAspectRatio(bool enabled);
+    Q_INVOKABLE void setLanguage(const QString &language);
 
 signals:
     void wallpapersChanged();
@@ -67,6 +70,7 @@ signals:
     void paginationChanged();
     void apiKeyChanged();
     void strictAspectRatioChanged();
+    void languageChanged();
 
 private:
     void setStatusMessage(const QString &message);
@@ -82,6 +86,7 @@ private:
     void requestSearch(bool reset);
     void loadDownloadedWallpapers();
     void persistPreferences();
+    QString localized(const QString &chinese, const QString &english) const;
 
     QNetworkAccessManager m_network;
     QVariantList m_wallpapers;
@@ -103,4 +108,5 @@ private:
     int m_currentPage = 1;
     int m_lastPage = 1;
     bool m_strictAspectRatio = false;
+    QString m_language = "zh-Hans";
 };

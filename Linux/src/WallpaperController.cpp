@@ -32,6 +32,7 @@ WallpaperController::WallpaperController(QObject *parent)
     m_apiKey = settings.value("account/apiKey").toString();
     m_strictAspectRatio = settings.value("search/strictAspectRatio", false).toBool();
     m_downloadDirectory = settings.value("storage/downloadDirectory").toString();
+    m_language = settings.value("ui/language", "zh-Hans").toString();
     updateDisplayResolution();
     ensureDownloadDirectory();
     refreshDesktopCapability();
@@ -53,6 +54,7 @@ QString WallpaperController::section() const { return m_section; }
 bool WallpaperController::canLoadMore() const { return m_section == "online" && m_currentPage < m_lastPage; }
 QString WallpaperController::apiKey() const { return m_apiKey; }
 bool WallpaperController::strictAspectRatio() const { return m_strictAspectRatio; }
+QString WallpaperController::language() const { return m_language; }
 
 void WallpaperController::search(
     const QString &query,
@@ -82,16 +84,16 @@ void WallpaperController::download(int index, bool setWhenFinished) {
         + "-" + wallpaper.value("resolution").toString() + "." + QFileInfo(QUrl(wallpaper.value("path").toString()).path()).suffix();
     if (QFileInfo::exists(cachedPath)) {
         if (setWhenFinished) {
-            if (setPlasmaWallpaper(cachedPath)) setStatusMessage("已设为 Plasma 桌面壁纸：" + QFileInfo(cachedPath).fileName());
+            if (setPlasmaWallpaper(cachedPath)) setStatusMessage(localized("已设为 Plasma 桌面壁纸：", "Set as Plasma wallpaper: ") + QFileInfo(cachedPath).fileName());
         } else {
             QDesktopServices::openUrl(QUrl::fromLocalFile(cachedPath));
-            setStatusMessage("壁纸已下载，已在文件管理器中打开。");
+            setStatusMessage(localized("壁纸已下载，已在文件管理器中打开。", "Wallpaper is already downloaded and was opened in the file manager."));
         }
         return;
     }
     const QUrl url(wallpaper.value("path").toString());
     if (!url.isValid()) {
-        setErrorMessage("该壁纸没有有效的下载地址。");
+        setErrorMessage(localized("该壁纸没有有效的下载地址。", "This wallpaper has no valid download URL."));
         return;
     }
 
@@ -101,7 +103,7 @@ void WallpaperController::download(int index, bool setWhenFinished) {
 
     m_downloading = true;
     setErrorMessage({});
-    setStatusMessage("正在下载 #" + wallpaper.value("id").toString() + "…");
+    setStatusMessage(localized("正在下载 #", "Downloading #") + wallpaper.value("id").toString() + "…");
     emit downloadingChanged();
 
     QNetworkReply *reply = m_network.get(request);
@@ -117,7 +119,7 @@ void WallpaperController::setWallpaper(int index) {
     const QVariantMap wallpaper = m_wallpapers.at(index).toMap();
     if (m_section == "downloaded") {
         if (setPlasmaWallpaper(wallpaper.value("localPath").toString())) {
-            setStatusMessage("已设为 Plasma 桌面壁纸：" + wallpaper.value("fileName").toString());
+            setStatusMessage(localized("已设为 Plasma 桌面壁纸：", "Set as Plasma wallpaper: ") + wallpaper.value("fileName").toString());
         }
         return;
     }
@@ -159,9 +161,9 @@ void WallpaperController::deleteDownloaded(int index) {
     const QString path = m_wallpapers.at(index).toMap().value("localPath").toString();
     if (QFile::remove(path)) {
         loadDownloadedWallpapers();
-        setStatusMessage("已删除下载的壁纸。");
+        setStatusMessage(localized("已删除下载的壁纸。", "Downloaded wallpaper deleted."));
     } else {
-        setErrorMessage("无法删除文件：" + path);
+        setErrorMessage(localized("无法删除文件：", "Cannot delete file: ") + path);
     }
 }
 
@@ -199,13 +201,13 @@ void WallpaperController::chooseDownloadDirectory() {
         const QString selectedPath = QString::fromUtf8(dialog->readAllStandardOutput()).trimmed();
         if (exitStatus == QProcess::NormalExit && exitCode == 0 && !selectedPath.isEmpty()) {
             setDownloadDirectory(QUrl::fromLocalFile(selectedPath));
-            setStatusMessage("下载目录已更新为：" + selectedPath);
+            setStatusMessage(localized("下载目录已更新为：", "Download folder updated to: ") + selectedPath);
         } else if (exitStatus != QProcess::NormalExit) {
-            setErrorMessage("KDE 目录选择器意外退出。");
+            setErrorMessage(localized("KDE 目录选择器意外退出。", "KDE folder picker closed unexpectedly."));
         }
         dialog->deleteLater();
     });
-    dialog->start("kdialog", {"--title", "选择壁纸下载目录", "--getexistingdirectory", ensureDownloadDirectory()});
+    dialog->start("kdialog", {"--title", localized("选择壁纸下载目录", "Choose wallpaper download folder"), "--getexistingdirectory", ensureDownloadDirectory()});
 }
 
 void WallpaperController::setStrictAspectRatio(bool enabled) {
@@ -215,10 +217,18 @@ void WallpaperController::setStrictAspectRatio(bool enabled) {
     emit strictAspectRatioChanged();
 }
 
+void WallpaperController::setLanguage(const QString &language) {
+    const QString normalized = language == "en" ? "en" : "zh-Hans";
+    if (m_language == normalized) return;
+    m_language = normalized;
+    persistPreferences();
+    emit languageChanged();
+}
+
 void WallpaperController::openDownloadDirectory() {
     const QString path = ensureDownloadDirectory();
     if (!QDesktopServices::openUrl(QUrl::fromLocalFile(path))) {
-        setErrorMessage("无法打开下载目录：" + path);
+        setErrorMessage(localized("无法打开下载目录：", "Cannot open download folder: ") + path);
     }
 }
 
@@ -236,9 +246,9 @@ void WallpaperController::refreshDesktopCapability() {
     }
 
     if (available) {
-        setStatusMessage("KDE Plasma 壁纸服务已就绪。");
+        setStatusMessage(localized("KDE Plasma 壁纸服务已就绪。", "KDE Plasma wallpaper service is ready."));
     } else {
-        setErrorMessage("未检测到 KDE Plasma 会话 D-Bus；请从 Plasma 桌面会话启动应用。");
+        setErrorMessage(localized("未检测到 KDE Plasma 会话 D-Bus；请从 Plasma 桌面会话启动应用。", "KDE Plasma session D-Bus was not detected; launch the app from Plasma."));
     }
 }
 
@@ -258,6 +268,10 @@ void WallpaperController::setErrorMessage(const QString &message) {
     emit errorMessageChanged();
 }
 
+QString WallpaperController::localized(const QString &chinese, const QString &english) const {
+    return m_language == "en" ? english : chinese;
+}
+
 void WallpaperController::updateDisplayResolution() {
     const QScreen *screen = qGuiApp->primaryScreen();
     const QSize size = screen ? screen->size() : QSize(1920, 1080);
@@ -275,7 +289,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply) {
     const auto cleanup = qScopeGuard([reply] { reply->deleteLater(); });
     if (reply->error() != QNetworkReply::NoError) {
         if (m_currentPage > 1) --m_currentPage;
-        setErrorMessage("搜索失败：" + reply->errorString());
+        setErrorMessage(localized("搜索失败：", "Search failed: ") + reply->errorString());
         setStatusMessage({});
         return;
     }
@@ -283,7 +297,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply) {
     QJsonParseError parseError;
     const QJsonDocument document = QJsonDocument::fromJson(reply->readAll(), &parseError);
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
-        setErrorMessage("Wallhaven 返回了无法读取的数据。");
+        setErrorMessage(localized("Wallhaven 返回了无法读取的数据。", "Wallhaven returned unreadable data."));
         setStatusMessage({});
         return;
     }
@@ -312,10 +326,8 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply) {
     m_wallpapers = m_onlineWallpapers;
     emit wallpapersChanged();
     emit paginationChanged();
-    setStatusMessage(QString("已加载 %1 / %2 张适合 %3 的壁纸。")
-        .arg(m_onlineWallpapers.size())
-        .arg(meta.value("total").toInt(m_onlineWallpapers.size()))
-        .arg(m_displayResolution));
+    setStatusMessage(localized(QString("已加载 %1 / %2 张适合 %3 的壁纸。").arg(m_onlineWallpapers.size()).arg(meta.value("total").toInt(m_onlineWallpapers.size())).arg(m_displayResolution),
+        QString("Loaded %1 / %2 wallpapers suitable for %3.").arg(m_onlineWallpapers.size()).arg(meta.value("total").toInt(m_onlineWallpapers.size())).arg(m_displayResolution)));
 }
 
 void WallpaperController::handleDownloadReply(
@@ -328,7 +340,7 @@ void WallpaperController::handleDownloadReply(
 
     const auto cleanup = qScopeGuard([reply] { reply->deleteLater(); });
     if (reply->error() != QNetworkReply::NoError) {
-        setErrorMessage("下载失败：" + reply->errorString());
+        setErrorMessage(localized("下载失败：", "Download failed: ") + reply->errorString());
         setStatusMessage({});
         return;
     }
@@ -344,7 +356,7 @@ void WallpaperController::handleDownloadReply(
 
     QFile file(filePath);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write(reply->readAll()) < 0) {
-        setErrorMessage("无法保存壁纸到：" + filePath);
+        setErrorMessage(localized("无法保存壁纸到：", "Cannot save wallpaper to: ") + filePath);
         setStatusMessage({});
         return;
     }
@@ -356,10 +368,10 @@ void WallpaperController::handleDownloadReply(
 
     if (setWhenFinished) {
         if (setPlasmaWallpaper(filePath)) {
-            setStatusMessage("已下载并设为 Plasma 桌面壁纸：" + QFileInfo(filePath).fileName());
+            setStatusMessage(localized("已下载并设为 Plasma 桌面壁纸：", "Downloaded and set as Plasma wallpaper: ") + QFileInfo(filePath).fileName());
         }
     } else {
-        setStatusMessage("下载完成：" + QFileInfo(filePath).fileName());
+        setStatusMessage(localized("下载完成：", "Download complete: ") + QFileInfo(filePath).fileName());
     }
 }
 
@@ -388,7 +400,7 @@ bool WallpaperController::setPlasmaWallpaper(const QString &filePath) {
     );
     const QDBusMessage reply = plasma.call("evaluateScript", script);
     if (reply.type() == QDBusMessage::ErrorMessage) {
-        setErrorMessage("Plasma 拒绝设置壁纸：" + reply.errorMessage());
+        setErrorMessage(localized("Plasma 拒绝设置壁纸：", "Plasma rejected the wallpaper request: ") + reply.errorMessage());
         return false;
     }
     setErrorMessage({});
@@ -473,7 +485,7 @@ void WallpaperController::requestSearch(bool reset) {
     request.setTransferTimeout(15'000);
     m_searching = true;
     setErrorMessage({});
-    setStatusMessage(m_currentPage == 1 ? "正在从 Wallhaven 获取壁纸…" : "正在加载下一页壁纸…");
+    setStatusMessage(m_currentPage == 1 ? localized("正在从 Wallhaven 获取壁纸…", "Fetching wallpapers from Wallhaven…") : localized("正在加载下一页壁纸…", "Loading the next wallpaper page…"));
     emit searchingChanged();
     QNetworkReply *reply = m_network.get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply] { handleSearchReply(reply); });
@@ -493,22 +505,22 @@ void WallpaperController::loadDownloadedWallpapers() {
         const QString remainder = base.startsWith(prefix) ? base.mid(prefix.size()) : base;
         const int separator = remainder.indexOf('-');
         const QString id = separator >= 0 ? remainder.left(separator) : remainder;
-        const QString resolution = separator >= 0 ? remainder.mid(separator + 1) : "本地图片";
+        const QString resolution = separator >= 0 ? remainder.mid(separator + 1) : localized("本地图片", "Local image");
         downloaded.append(QVariantMap {
             {"id", id},
             {"fileName", file.fileName()},
             {"localPath", file.absoluteFilePath()},
             {"thumbnail", QUrl::fromLocalFile(file.absoluteFilePath())},
             {"resolution", resolution},
-            {"category", "已下载"},
-            {"purity", "本地"},
+            {"category", localized("已下载", "Downloaded")},
+            {"purity", localized("本地", "Local")},
             {"pageUrl", QString("https://wallhaven.cc/w/%1").arg(id)}
         });
     }
     m_wallpapers = downloaded;
     emit wallpapersChanged();
     setErrorMessage({});
-    setStatusMessage(QString("下载库中有 %1 张壁纸。").arg(downloaded.size()));
+    setStatusMessage(localized(QString("下载库中有 %1 张壁纸。").arg(downloaded.size()), QString("The download library has %1 wallpapers.").arg(downloaded.size())));
 }
 
 void WallpaperController::persistPreferences() {
@@ -520,4 +532,5 @@ void WallpaperController::persistPreferences() {
     settings.setValue("search/strictAspectRatio", m_strictAspectRatio);
     settings.setValue("storage/downloadDirectory", m_downloadDirectory);
     settings.setValue("account/apiKey", m_apiKey);
+    settings.setValue("ui/language", m_language);
 }
