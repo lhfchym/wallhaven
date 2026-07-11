@@ -26,7 +26,7 @@ ApplicationWindow {
 
     function submitCurrentSearch() {
         const categories = ["general", "anime", "people", "all"]
-        const purity = ["sfw", "sketchy"]
+        const purity = ["sfw", "sketchy", "all"]
         const sorting = ["toplist", "date_added", "favorites", "random", "views", "relevance"]
         controller.search(searchField.text, categories[categoryBox.currentIndex], purity[purityBox.currentIndex], sorting[sortingBox.currentIndex])
     }
@@ -209,7 +209,9 @@ ApplicationWindow {
                 }
                 BlueCombo {
                     id: purityBox
-                    model: ["SFW", window.t("安全 + 擦边", "SFW + Sketchy")]
+                    model: controller.apiKey.length > 0
+                        ? ["SFW", window.t("安全 + 擦边", "SFW + Sketchy"), window.t("全部（含 NSFW）", "All (including NSFW)")]
+                        : ["SFW", window.t("安全 + 擦边", "SFW + Sketchy")]
                     onActivated: window.submitCurrentSearch()
                 }
                 BlueCombo {

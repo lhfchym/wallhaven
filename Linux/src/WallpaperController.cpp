@@ -482,6 +482,7 @@ QString WallpaperController::categoriesValue(const QString &category) const {
 }
 
 QString WallpaperController::purityValue(const QString &purity) const {
+    if (purity == "all") return "111";
     if (purity == "sketchy") return "110";
     return "100";
 }
