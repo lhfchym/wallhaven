@@ -23,4 +23,13 @@ The application calls Plasma's session D-Bus interface directly to set the downl
 - Persistent search, display-fit and download-directory preferences.
 - Bluecurve-inspired, original QML visual system.
 
-Later milestones add KWallet-backed API key storage, Portal fallback and Flatpak packaging.
+The API key is stored in KDE Wallet; direct Plasma D-Bus wallpaper setting falls back to the XDG Wallpaper Portal when necessary.
+
+## Flatpak
+
+The Flatpak build uses the KDE runtime and XDG Wallpaper Portal, so a sandboxed install can request wallpaper changes without direct access to Plasma's private D-Bus service.
+
+```sh
+flatpak-builder --user --install --force-clean build-flatpak Linux/packaging/dev.local.WallhavenLinux.yml
+flatpak run dev.local.WallhavenLinux
+```

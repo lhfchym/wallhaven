@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>dev.local.WallhavenLinux</id>
+  <name>Wallhaven Linux</name>
+  <summary>Browse, download, and apply Wallhaven wallpapers</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>LicenseRef-proprietary</project_license>
+  <description>
+    <p>Wallhaven Linux is a KDE Plasma wallpaper browser with search, local downloads, and desktop wallpaper integration.</p>
+  </description>
+  <launchable type="desktop-id">dev.local.WallhavenLinux.desktop</launchable>
+  <provides>
+    <binary>WallhavenLinux</binary>
+  </provides>
+  <releases>
+    <release version="0.1.0" date="2026-07-12"/>
+  </releases>
+</component>

@@ -79,6 +79,7 @@ private:
     void handleSearchReply(QNetworkReply *reply);
     void handleDownloadReply(QNetworkReply *reply, const QVariantMap &wallpaper, bool setWhenFinished);
     bool setPlasmaWallpaper(const QString &filePath);
+    bool setPortalWallpaper(const QString &filePath);
     QString ensureDownloadDirectory();
     QString categoriesValue(const QString &category) const;
     QString purityValue(const QString &purity) const;
@@ -87,6 +88,8 @@ private:
     void loadDownloadedWallpapers();
     void persistPreferences();
     QString localized(const QString &chinese, const QString &english) const;
+    void loadApiKeyFromKWallet();
+    void saveApiKeyToKWallet();
 
     QNetworkAccessManager m_network;
     QVariantList m_wallpapers;
@@ -104,6 +107,7 @@ private:
     QString m_purity = "sfw";
     QString m_sorting = "toplist";
     QString m_apiKey;
+    QString m_legacyApiKey;
     QString m_seed;
     int m_currentPage = 1;
     int m_lastPage = 1;

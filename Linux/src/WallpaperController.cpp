@@ -14,9 +14,11 @@
 #include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrlQuery>
 #include <QDBusInterface>
 #include <QDBusReply>
+#include <QDBusUnixFileDescriptor>
 
 namespace {
 constexpr auto kUserAgent = "WallhavenLinux/0.1 (Kubuntu Plasma)";
@@ -29,7 +31,8 @@ WallpaperController::WallpaperController(QObject *parent)
     m_category = settings.value("search/category", "general").toString();
     m_purity = settings.value("search/purity", "sfw").toString();
     m_sorting = settings.value("search/sorting", "toplist").toString();
-    m_apiKey = settings.value("account/apiKey").toString();
+    m_legacyApiKey = settings.value("account/apiKey").toString();
+    settings.remove("account/apiKey");
     m_strictAspectRatio = settings.value("search/strictAspectRatio", false).toBool();
     m_downloadDirectory = settings.value("storage/downloadDirectory").toString();
     m_language = settings.value("ui/language", "zh-Hans").toString();
@@ -40,6 +43,7 @@ WallpaperController::WallpaperController(QObject *parent)
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, [this] {
         updateDisplayResolution();
     });
+    QTimer::singleShot(0, this, [this] { loadApiKeyFromKWallet(); });
 }
 
 QVariantList WallpaperController::wallpapers() const { return m_wallpapers; }
@@ -184,6 +188,7 @@ void WallpaperController::setApiKey(const QString &apiKey) {
     m_apiKey = normalized;
     persistPreferences();
     emit apiKeyChanged();
+    saveApiKeyToKWallet();
 }
 
 void WallpaperController::setDownloadDirectory(const QUrl &directory) {
@@ -239,16 +244,28 @@ void WallpaperController::refreshDesktopCapability() {
         "org.kde.PlasmaShell",
         QDBusConnection::sessionBus()
     );
-    const bool available = plasma.isValid();
+    QDBusInterface portal(
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.Wallpaper",
+        QDBusConnection::sessionBus()
+    );
+    const bool directPlasmaAvailable = plasma.isValid();
+    const bool portalAvailable = portal.isValid();
+    const bool available = directPlasmaAvailable || portalAvailable;
     if (m_plasmaAvailable != available) {
         m_plasmaAvailable = available;
         emit plasmaAvailableChanged();
     }
 
-    if (available) {
+    if (directPlasmaAvailable) {
+        setErrorMessage({});
         setStatusMessage(localized("KDE Plasma 壁纸服务已就绪。", "KDE Plasma wallpaper service is ready."));
+    } else if (portalAvailable) {
+        setErrorMessage({});
+        setStatusMessage(localized("XDG 壁纸门户已就绪。", "XDG Wallpaper Portal is ready."));
     } else {
-        setErrorMessage(localized("未检测到 KDE Plasma 会话 D-Bus；请从 Plasma 桌面会话启动应用。", "KDE Plasma session D-Bus was not detected; launch the app from Plasma."));
+        setErrorMessage(localized("未检测到 Plasma 或 XDG 壁纸服务；请从桌面会话启动应用。", "Neither Plasma nor the XDG wallpaper service was detected; launch the app from a desktop session."));
     }
 }
 
@@ -376,11 +393,6 @@ void WallpaperController::handleDownloadReply(
 }
 
 bool WallpaperController::setPlasmaWallpaper(const QString &filePath) {
-    refreshDesktopCapability();
-    if (!m_plasmaAvailable) {
-        return false;
-    }
-
     const QString imageUrl = QUrl::fromLocalFile(filePath).toString(QUrl::FullyEncoded);
     const QString script = QStringLiteral(R"(
         var allDesktops = desktops();
@@ -398,12 +410,50 @@ bool WallpaperController::setPlasmaWallpaper(const QString &filePath) {
         "org.kde.PlasmaShell",
         QDBusConnection::sessionBus()
     );
-    const QDBusMessage reply = plasma.call("evaluateScript", script);
+    if (plasma.isValid()) {
+        const QDBusMessage reply = plasma.call("evaluateScript", script);
+        if (reply.type() != QDBusMessage::ErrorMessage) {
+            setErrorMessage({});
+            return true;
+        }
+    }
+    return setPortalWallpaper(filePath);
+}
+
+bool WallpaperController::setPortalWallpaper(const QString &filePath) {
+    QFile image(filePath);
+    if (!image.open(QIODevice::ReadOnly)) {
+        setErrorMessage(localized("无法打开壁纸文件：", "Cannot open wallpaper file: ") + filePath);
+        return false;
+    }
+
+    QDBusInterface portal(
+        "org.freedesktop.portal.Desktop",
+        "/org/freedesktop/portal/desktop",
+        "org.freedesktop.portal.Wallpaper",
+        QDBusConnection::sessionBus()
+    );
+    if (!portal.isValid()) {
+        setErrorMessage(localized("没有可用的壁纸服务。", "No wallpaper service is available."));
+        return false;
+    }
+
+    QVariantMap options;
+    options.insert("show-preview", true);
+    options.insert("set-on", "background");
+    const QDBusUnixFileDescriptor descriptor(image.handle());
+    const QDBusMessage reply = portal.call(
+        "SetWallpaperFile",
+        QString(),
+        QVariant::fromValue(descriptor),
+        options
+    );
     if (reply.type() == QDBusMessage::ErrorMessage) {
-        setErrorMessage(localized("Plasma 拒绝设置壁纸：", "Plasma rejected the wallpaper request: ") + reply.errorMessage());
+        setErrorMessage(localized("XDG 壁纸门户拒绝请求：", "XDG Wallpaper Portal rejected the request: ") + reply.errorMessage());
         return false;
     }
     setErrorMessage({});
+    setStatusMessage(localized("正在等待系统确认壁纸更改…", "Waiting for system confirmation of the wallpaper change…"));
     return true;
 }
 
@@ -531,6 +581,36 @@ void WallpaperController::persistPreferences() {
     settings.setValue("search/sorting", m_sorting);
     settings.setValue("search/strictAspectRatio", m_strictAspectRatio);
     settings.setValue("storage/downloadDirectory", m_downloadDirectory);
-    settings.setValue("account/apiKey", m_apiKey);
     settings.setValue("ui/language", m_language);
+}
+
+void WallpaperController::loadApiKeyFromKWallet() {
+    auto *wallet = new QProcess(this);
+    connect(wallet, &QProcess::finished, this, [this, wallet](int exitCode, QProcess::ExitStatus exitStatus) {
+        const QString storedKey = QString::fromUtf8(wallet->readAllStandardOutput()).trimmed();
+        if (exitStatus == QProcess::NormalExit && exitCode == 0 && !storedKey.isEmpty()) {
+            m_apiKey = storedKey;
+            emit apiKeyChanged();
+        } else if (!m_legacyApiKey.isEmpty()) {
+            m_apiKey = m_legacyApiKey;
+            m_legacyApiKey.clear();
+            emit apiKeyChanged();
+            saveApiKeyToKWallet();
+        }
+        wallet->deleteLater();
+    });
+    wallet->start("kwallet-query", {"--folder", "WallhavenLinux", "--read-password", "apiKey", "kdewallet"});
+}
+
+void WallpaperController::saveApiKeyToKWallet() {
+    auto *wallet = new QProcess(this);
+    connect(wallet, &QProcess::finished, this, [this, wallet](int exitCode, QProcess::ExitStatus exitStatus) {
+        if (exitStatus != QProcess::NormalExit || exitCode != 0) {
+            setErrorMessage(localized("无法保存 API Key 到 KDE Wallet。", "Unable to save the API key to KDE Wallet."));
+        }
+        wallet->deleteLater();
+    });
+    wallet->start("kwallet-query", {"--folder", "WallhavenLinux", "--write-password", "apiKey", "kdewallet"});
+    wallet->write(m_apiKey.toUtf8());
+    wallet->closeWriteChannel();
 }

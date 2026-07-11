@@ -35,3 +35,15 @@ target_link_libraries(WallhavenLinux
 )
 
 install(TARGETS WallhavenLinux BUNDLE DESTINATION . RUNTIME DESTINATION bin)
+install(
+    FILES packaging/dev.local.WallhavenLinux.desktop
+    DESTINATION share/applications
+)
+install(
+    FILES packaging/dev.local.WallhavenLinux.svg
+    DESTINATION share/icons/hicolor/scalable/apps
+)
+install(
+    FILES packaging/dev.local.WallhavenLinux.metainfo.xml
+    DESTINATION share/metainfo
+)
