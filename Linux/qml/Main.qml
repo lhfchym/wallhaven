@@ -20,6 +20,13 @@ ApplicationWindow {
     property var selectedWallpaper: selectedIndex >= 0 ? controller.wallpapers[selectedIndex] : null
     onVisibleChanged: if (visible) controller.refreshDesktopCapability()
 
+    function submitCurrentSearch() {
+        const categories = ["general", "anime", "people", "all"]
+        const purity = ["sfw", "sketchy"]
+        const sorting = ["toplist", "date_added", "favorites", "random", "views", "relevance"]
+        controller.search(searchField.text, categories[categoryBox.currentIndex], purity[purityBox.currentIndex], sorting[sortingBox.currentIndex])
+    }
+
     color: bluecurve.base
 
     QtObject {
@@ -190,19 +197,26 @@ ApplicationWindow {
                     background: Bevel { sunken: true; color: "white" }
                     onAccepted: searchButton.clicked()
                 }
-                BlueCombo { id: categoryBox; model: ["General", "Anime", "People", "All"] }
-                BlueCombo { id: purityBox; model: ["SFW", "SFW + Sketchy"] }
-                BlueCombo { id: sortingBox; model: ["热门", "最新", "收藏排行", "随机", "浏览量", "相关性"] }
+                BlueCombo {
+                    id: categoryBox
+                    model: ["General", "Anime", "People", "All"]
+                    onActivated: window.submitCurrentSearch()
+                }
+                BlueCombo {
+                    id: purityBox
+                    model: ["SFW", "SFW + Sketchy"]
+                    onActivated: window.submitCurrentSearch()
+                }
+                BlueCombo {
+                    id: sortingBox
+                    model: ["热门", "最新", "收藏排行", "随机", "浏览量", "相关性"]
+                    onActivated: window.submitCurrentSearch()
+                }
                 BlueButton {
                     id: searchButton
                     text: controller.searching ? "搜索中…" : "搜索"
                     enabled: !controller.searching
-                    onClicked: {
-                        const categories = ["general", "anime", "people", "all"]
-                        const purity = ["sfw", "sketchy"]
-                        const sorting = ["toplist", "date_added", "favorites", "random", "views", "relevance"]
-                        controller.search(searchField.text, categories[categoryBox.currentIndex], purity[purityBox.currentIndex], sorting[sortingBox.currentIndex])
-                    }
+                    onClicked: window.submitCurrentSearch()
                 }
             }
         }
@@ -221,9 +235,9 @@ ApplicationWindow {
                     spacing: 8
                     Text { text: "浏览"; font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
-                    BlueButton { Layout.fillWidth: true; text: "✦  热门"; onClicked: { sortingBox.currentIndex = 0; searchButton.clicked() } }
-                    BlueButton { Layout.fillWidth: true; text: "◷  最新"; onClicked: { sortingBox.currentIndex = 1; searchButton.clicked() } }
-                    BlueButton { Layout.fillWidth: true; text: "☆  收藏排行"; onClicked: { sortingBox.currentIndex = 2; searchButton.clicked() } }
+                    BlueButton { Layout.fillWidth: true; text: "✦  热门"; onClicked: { sortingBox.currentIndex = 0; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; text: "◷  最新"; onClicked: { sortingBox.currentIndex = 1; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; text: "☆  收藏排行"; onClicked: { sortingBox.currentIndex = 2; window.submitCurrentSearch() } }
                     BlueButton { Layout.fillWidth: true; text: "⇩  已下载"; onClicked: controller.showSection("downloaded") }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
                     Text { text: "桌面集成"; font.bold: true; color: bluecurve.text }
