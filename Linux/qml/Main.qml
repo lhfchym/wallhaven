@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import Qt.labs.platform
+import QtQuick.Dialogs
 import Wallhaven
 
 ApplicationWindow {
@@ -430,6 +430,7 @@ ApplicationWindow {
     FolderDialog {
         id: folderDialog
         title: "选择壁纸下载目录"
+        currentFolder: "file://" + controller.downloadDirectory
         onAccepted: controller.setDownloadDirectory(selectedFolder)
     }
 
