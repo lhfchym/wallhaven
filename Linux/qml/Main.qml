@@ -1,7 +1,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
-import QtQuick.Dialogs
 import Wallhaven
 
 ApplicationWindow {
@@ -427,13 +426,6 @@ ApplicationWindow {
         }
     }
 
-    FolderDialog {
-        id: folderDialog
-        title: "选择壁纸下载目录"
-        currentFolder: "file://" + controller.downloadDirectory
-        onAccepted: controller.setDownloadDirectory(selectedFolder)
-    }
-
     Popup {
         id: settingsPopup
         anchors.centerIn: Overlay.overlay
@@ -458,7 +450,7 @@ ApplicationWindow {
             }
             Text { text: "下载目录"; color: bluecurve.text; font.bold: true }
             Text { Layout.fillWidth: true; text: controller.downloadDirectory; wrapMode: Text.WrapAnywhere; font.pixelSize: 11; color: "#35495d" }
-            BlueButton { text: "选择目录…"; onClicked: folderDialog.open() }
+            BlueButton { text: "选择目录…"; onClicked: controller.chooseDownloadDirectory() }
             CheckBox {
                 id: strictRatioCheck
                 text: "只显示与当前显示器相同宽高比的壁纸"

@@ -51,6 +51,7 @@ public:
     Q_INVOKABLE void openPage(int index);
     Q_INVOKABLE void setApiKey(const QString &apiKey);
     Q_INVOKABLE void setDownloadDirectory(const QUrl &directory);
+    Q_INVOKABLE void chooseDownloadDirectory();
     Q_INVOKABLE void setStrictAspectRatio(bool enabled);
 
 signals:

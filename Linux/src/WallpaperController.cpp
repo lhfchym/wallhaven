@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QProcess>
 #include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
@@ -190,6 +191,21 @@ void WallpaperController::setDownloadDirectory(const QUrl &directory) {
     m_downloadDirectory = path;
     persistPreferences();
     emit downloadDirectoryChanged();
+}
+
+void WallpaperController::chooseDownloadDirectory() {
+    auto *dialog = new QProcess(this);
+    connect(dialog, &QProcess::finished, this, [this, dialog](int exitCode, QProcess::ExitStatus exitStatus) {
+        const QString selectedPath = QString::fromUtf8(dialog->readAllStandardOutput()).trimmed();
+        if (exitStatus == QProcess::NormalExit && exitCode == 0 && !selectedPath.isEmpty()) {
+            setDownloadDirectory(QUrl::fromLocalFile(selectedPath));
+            setStatusMessage("下载目录已更新为：" + selectedPath);
+        } else if (exitStatus != QProcess::NormalExit) {
+            setErrorMessage("KDE 目录选择器意外退出。");
+        }
+        dialog->deleteLater();
+    });
+    dialog->start("kdialog", {"--title", "选择壁纸下载目录", "--getexistingdirectory", ensureDownloadDirectory()});
 }
 
 void WallpaperController::setStrictAspectRatio(bool enabled) {
