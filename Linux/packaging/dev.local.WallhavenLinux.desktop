@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Wallhaven Linux
+Comment=Wallhaven wallpaper browser for KDE Plasma
+Exec=WallhavenLinux
+Icon=dev.local.WallhavenLinux
+Categories=Graphics;Qt;
+Terminal=false
+StartupNotify=true

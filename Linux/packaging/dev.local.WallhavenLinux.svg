@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5da1dd"/>
+      <stop offset="0.48" stop-color="#2a66a4"/>
+      <stop offset="1" stop-color="#173e73"/>
+    </linearGradient>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="10" fill="#f7fbff" stroke="#173e73" stroke-width="7"/>
+  <rect x="12" y="12" width="104" height="104" rx="5" fill="url(#blue)" stroke="#96bddf" stroke-width="4"/>
+  <path d="M23 90 48 59l17 20 14-16 26 27" fill="none" stroke="#e7f5ff" stroke-linecap="square" stroke-linejoin="miter" stroke-width="8"/>
+  <circle cx="82" cy="42" r="10" fill="#f6e67a" stroke="#d4a83c" stroke-width="3"/>
+  <text x="64" y="109" fill="#fff" font-family="sans-serif" font-size="17" font-weight="700" text-anchor="middle">WALLHAVEN</text>
+</svg>

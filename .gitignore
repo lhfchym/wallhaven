@@ -2,6 +2,7 @@
 .swiftpm/
 DerivedData/
 build/
+Linux/build/
 dist/
 *.xcodeproj/
 *.xcworkspace/
