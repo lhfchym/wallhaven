@@ -15,9 +15,12 @@ The application calls Plasma's session D-Bus interface directly to set the downl
 ## Current milestone
 
 - Wallhaven search with category, purity, sorting and display-resolution filtering.
+- Quick navigation for Toplist, Latest, Favorites and the downloaded-wallpaper library.
+- Pagination, refresh, source-page opening, local deletion and re-applying downloaded wallpapers.
 - Thumbnail grid and full selection preview.
 - Download to `~/Pictures/WallhavenLinux`.
 - Apply a downloaded image through KDE Plasma's D-Bus wallpaper service.
+- Persistent search, display-fit and download-directory preferences.
 - Bluecurve-inspired, original QML visual system.
 
-Later milestones add the downloaded-wallpaper gallery, persistent preferences, API key storage, Portal fallback and Flatpak packaging.
+Later milestones add KWallet-backed API key storage, Portal fallback and Flatpak packaging.
