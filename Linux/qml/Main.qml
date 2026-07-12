@@ -62,42 +62,17 @@ ApplicationWindow {
     component BlueButton: Button {
         id: button
         property bool selected: false
-        property string blueIcon: ""
+        property string themeIcon: ""
         implicitHeight: 30
         implicitWidth: 94
         font.bold: true
         font.pixelSize: 13
-        contentItem: Row {
-            anchors.centerIn: parent
-            width: Math.min(implicitWidth, parent.width - 10)
-            spacing: button.blueIcon.length > 0 ? 6 : 0
-            Rectangle {
-                visible: button.blueIcon.length > 0
-                width: visible ? 16 : 0
-                height: 16
-                color: button.down ? "#b9d4eb" : "#eaf4fc"
-                border.width: 1
-                border.color: "#315f91"
-                Text {
-                    anchors.centerIn: parent
-                    text: button.blueIcon
-                    color: button.enabled ? bluecurve.darkBlue : "#667078"
-                    font.bold: true
-                    font.pixelSize: 11
-                    style: Text.Raised
-                    styleColor: "white"
-                }
-            }
-            Text {
-                width: button.blueIcon.length > 0 ? Math.max(0, parent.width - 22) : parent.width
-                text: button.text
-                font: button.font
-                color: button.enabled ? bluecurve.text : "#667078"
-                horizontalAlignment: Text.AlignHCenter
-                verticalAlignment: Text.AlignVCenter
-                elide: Text.ElideRight
-            }
-        }
+        icon.name: button.themeIcon
+        icon.width: 16
+        icon.height: 16
+        display: button.themeIcon.length > 0 ? AbstractButton.TextBesideIcon : AbstractButton.TextOnly
+        leftPadding: 7
+        rightPadding: 7
         background: Bevel {
             sunken: button.down
             color: button.selected ? "#9cc8ee" : (button.hovered ? "#dce8f3" : bluecurve.base)
@@ -245,7 +220,7 @@ ApplicationWindow {
                 }
                 BlueButton {
                     id: searchButton
-                    blueIcon: "⌕"
+                    themeIcon: "stock-find"
                     text: controller.searching ? window.t("搜索中…", "Searching…") : window.t("搜索", "Search")
                     enabled: !controller.searching
                     onClicked: window.submitCurrentSearch()
@@ -267,10 +242,10 @@ ApplicationWindow {
                     spacing: 8
                     Text { text: window.t("浏览", "Browse"); font.bold: true; color: bluecurve.darkBlue; font.pixelSize: 14 }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "✦"; text: window.t("热门", "Toplist"); onClicked: { sortingBox.currentIndex = 0; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "◷"; text: window.t("最新", "Latest"); onClicked: { sortingBox.currentIndex = 1; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "☆"; text: window.t("收藏排行", "Favorites"); onClicked: { sortingBox.currentIndex = 2; window.submitCurrentSearch() } }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "⇩"; text: window.t("已下载", "Downloaded"); onClicked: controller.showSection("downloaded") }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "stock-goto-top"; text: window.t("热门", "Toplist"); onClicked: { sortingBox.currentIndex = 0; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "stock-history"; text: window.t("最新", "Latest"); onClicked: { sortingBox.currentIndex = 1; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "stock-bookmarks"; text: window.t("收藏排行", "Favorites"); onClicked: { sortingBox.currentIndex = 2; window.submitCurrentSearch() } }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "folder-downloads"; text: window.t("已下载", "Downloaded"); onClicked: controller.showSection("downloaded") }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
                     Text { text: window.t("桌面集成", "Desktop Integration"); font.bold: true; color: bluecurve.text }
                     RowLayout {
@@ -278,7 +253,7 @@ ApplicationWindow {
                         Rectangle { width: 10; height: 10; radius: 5; color: controller.plasmaAvailable ? "#2f8a38" : "#b0392e" }
                         Text { Layout.fillWidth: true; wrapMode: Text.Wrap; text: controller.plasmaAvailable ? window.t("Plasma 壁纸服务可用", "Plasma wallpaper service is ready") : window.t("Plasma 服务未检测到", "Plasma service was not detected"); font.pixelSize: 12 }
                     }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "↻"; text: window.t("重新检测", "Recheck"); onClicked: controller.refreshDesktopCapability() }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "stock-refresh"; text: window.t("重新检测", "Recheck"); onClicked: controller.refreshDesktopCapability() }
                     Rectangle { Layout.fillWidth: true; height: 1; color: bluecurve.shadow }
                     Text { text: window.t("下载库", "Library"); font.bold: true; color: bluecurve.text }
                     Text {
@@ -288,10 +263,10 @@ ApplicationWindow {
                         color: "#35495d"
                         font.pixelSize: 11
                     }
-                    BlueButton { Layout.fillWidth: true; blueIcon: "▣"; text: window.t("打开下载目录", "Open download folder"); onClicked: controller.openDownloadDirectory() }
+                    BlueButton { Layout.fillWidth: true; themeIcon: "folder"; text: window.t("打开下载目录", "Open download folder"); onClicked: controller.openDownloadDirectory() }
                     BlueButton {
                         Layout.fillWidth: true
-                        blueIcon: "⚙"
+                        themeIcon: "stock-preferences"
                         text: window.t("设置", "Settings")
                         onClicked: {
                             apiKeyField.text = controller.apiKey
@@ -418,21 +393,21 @@ ApplicationWindow {
                     Item { Layout.fillHeight: true }
                     BlueButton {
                         Layout.fillWidth: true
-                        blueIcon: controller.section === "downloaded" ? "▣" : "⇩"
+                        themeIcon: controller.section === "downloaded" ? "folder" : "stock-download"
                         text: controller.section === "downloaded" ? window.t("在文件管理器中打开", "Open in file manager") : (controller.downloading ? window.t("下载中…", "Downloading…") : window.t("下载", "Download"))
                         enabled: selectedIndex >= 0 && !controller.downloading
                         onClicked: controller.section === "downloaded" ? controller.openDownloadDirectory() : controller.download(selectedIndex)
                     }
                     BlueButton {
                         Layout.fillWidth: true
-                        blueIcon: "✦"
+                        themeIcon: "icon-background-picture"
                         text: window.t("设为桌面壁纸", "Set as wallpaper")
                         enabled: selectedIndex >= 0 && !controller.downloading && controller.plasmaAvailable
                         onClicked: controller.setWallpaper(selectedIndex)
                     }
                     BlueButton {
                         Layout.fillWidth: true
-                        blueIcon: controller.section === "downloaded" ? "×" : "↗"
+                        themeIcon: controller.section === "downloaded" ? "stock-delete" : "stock-open"
                         text: controller.section === "downloaded" ? window.t("删除此壁纸", "Delete wallpaper") : window.t("打开页面", "Open page")
                         enabled: selectedIndex >= 0 && !controller.downloading
                         onClicked: controller.section === "downloaded" ? controller.deleteDownloaded(selectedIndex) : controller.openPage(selectedIndex)
@@ -465,9 +440,9 @@ ApplicationWindow {
                 color: bluecurve.darkBlue
                 font.bold: true
             }
-            BlueButton { blueIcon: "↻"; text: window.t("刷新", "Refresh"); enabled: !controller.searching; onClicked: controller.refresh() }
+            BlueButton { themeIcon: "stock-refresh"; text: window.t("刷新", "Refresh"); enabled: !controller.searching; onClicked: controller.refresh() }
             BlueButton {
-                blueIcon: "»"
+                themeIcon: "stock-go-forward"
                 text: window.t("下一页", "Next page")
                 visible: controller.section === "online"
                 enabled: controller.canLoadMore && !controller.searching
@@ -523,7 +498,7 @@ ApplicationWindow {
             }
             Text { text: window.t("下载目录", "Download folder"); color: bluecurve.text; font.bold: true }
             Text { Layout.fillWidth: true; text: controller.downloadDirectory; wrapMode: Text.WrapAnywhere; font.pixelSize: 11; color: "#35495d" }
-            BlueButton { blueIcon: "▣"; text: window.t("选择目录…", "Choose folder…"); onClicked: controller.chooseDownloadDirectory() }
+            BlueButton { themeIcon: "folder"; text: window.t("选择目录…", "Choose folder…"); onClicked: controller.chooseDownloadDirectory() }
             CheckBox {
                 id: strictRatioCheck
                 text: window.t("只显示与当前显示器相同宽高比的壁纸", "Only show wallpapers matching this display's aspect ratio")
@@ -532,9 +507,9 @@ ApplicationWindow {
             RowLayout {
                 Layout.fillWidth: true
                 Item { Layout.fillWidth: true }
-                BlueButton { blueIcon: "×"; text: window.t("取消", "Cancel"); onClicked: settingsPopup.close() }
+                BlueButton { themeIcon: "stock-cancel"; text: window.t("取消", "Cancel"); onClicked: settingsPopup.close() }
                 BlueButton {
-                    blueIcon: "✓"
+                    themeIcon: "stock-save"
                     text: window.t("保存", "Save")
                     onClicked: {
                         controller.setApiKey(apiKeyField.text)
