@@ -17,13 +17,14 @@ The application calls Plasma's session D-Bus interface directly to set the downl
 - Wallhaven search with category, purity, sorting and display-resolution filtering.
 - Quick navigation for Toplist, Latest, Favorites and the downloaded-wallpaper library.
 - Pagination, refresh, source-page opening, local deletion and re-applying downloaded wallpapers.
+- Automatic next-page loading preserves the current gallery position and selection instead of jumping back to the first item.
 - Thumbnail grid and full selection preview.
 - Download to `~/Pictures/WallhavenLinux`.
 - Apply a downloaded image through KDE Plasma's D-Bus wallpaper service.
 - Persistent search, display-fit and download-directory preferences.
-- Bluecurve-inspired, original QML visual system.
+- Bluecurve-inspired QML visual system using the active Plasma Bluecurve icon theme for button actions.
 
-The API key is stored in KDE Wallet; direct Plasma D-Bus wallpaper setting falls back to the XDG Wallpaper Portal when necessary.
+The API key is stored asynchronously in KDE Wallet and persists across restarts. Direct Plasma D-Bus wallpaper setting falls back to the XDG Wallpaper Portal when necessary; the Portal path reports success only after the desktop service confirms the request.
 
 ## Flatpak
 

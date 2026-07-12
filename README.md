@@ -1,6 +1,9 @@
-# WallhavenMac
+# Wallhaven
 
-A macOS wallpaper picker for wallhaven.cc.
+Wallhaven wallpaper browser for macOS and KDE Plasma on Linux.
+
+- `Sources/` contains the original macOS SwiftUI client.
+- `Linux/` contains the Qt 6 / QML client for Kubuntu 26.04 LTS, KDE Plasma and Wayland.
 
 The first milestone is a focused loop:
 
@@ -9,7 +12,7 @@ The first milestone is a focused loop:
 3. Preview a wallpaper.
 4. Set it as the desktop wallpaper.
 
-## Development
+## macOS development
 
 This project is intentionally SwiftPM-first, so the early prototype can build without a full Xcode project.
 
@@ -55,7 +58,7 @@ brew install swiftlint
 xcodegen generate
 ```
 
-## Current Scope
+## macOS scope
 
 - macOS only.
 - Dock app with a menu bar shortcut.
@@ -63,3 +66,17 @@ xcodegen generate
 - wallhaven API integration.
 - Automatic display-aware wallpaper matching.
 - Local cache and history.
+
+## Linux: Kubuntu / KDE Plasma
+
+The Linux client is a separate Qt 6 / QML application designed for KDE Plasma on Wayland. Its visual layer is Bluecurve-inspired and uses the active Bluecurve icon theme for action buttons when that theme is selected in Plasma.
+
+```sh
+cmake -S Linux -B Linux/build -G Ninja
+cmake --build Linux/build
+Linux/build/WallhavenLinux
+```
+
+The application should be launched from the graphical Plasma session. It supports display-aware Wallhaven search, Chinese/English UI, KDE Wallet API-key storage, downloaded-wallpaper management, automatic next-page loading that preserves the gallery position, Plasma wallpaper application, and an XDG Wallpaper Portal fallback.
+
+For Flatpak installation and further Linux details, see [Linux/README.md](Linux/README.md).
