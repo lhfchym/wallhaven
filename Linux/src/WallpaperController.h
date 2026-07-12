@@ -8,6 +8,7 @@
 #include <QVariantList>
 
 class QNetworkReply;
+class QFile;
 
 class WallpaperController : public QObject {
     Q_OBJECT
@@ -72,6 +73,10 @@ signals:
     void apiKeyChanged();
     void strictAspectRatioChanged();
     void languageChanged();
+    void pageAppendFinished(bool success);
+
+private slots:
+    void handlePortalResponse(uint response, const QVariantMap &results);
 
 private:
     void setStatusMessage(const QString &message);
@@ -112,6 +117,9 @@ private:
     QString m_legacyApiKey;
     QString m_seed;
     QPointer<QNetworkReply> m_activeSearchReply;
+    QPointer<QFile> m_pendingPortalImage;
+    QString m_pendingPortalRequestPath;
+    QString m_pendingPortalFilePath;
     quint64 m_searchGeneration = 0;
     quint64 m_credentialGeneration = 0;
     int m_currentPage = 1;

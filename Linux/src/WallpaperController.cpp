@@ -1,7 +1,6 @@
 #include "WallpaperController.h"
 
 #include <algorithm>
-#include <memory>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -360,6 +359,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply, quint64 genera
     if (reply->error() != QNetworkReply::NoError) {
         setErrorMessage(localized("搜索失败：", "Search failed: ") + reply->errorString());
         setStatusMessage({});
+        if (!reset) emit pageAppendFinished(false);
         return;
     }
 
@@ -368,6 +368,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply, quint64 genera
     if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
         setErrorMessage(localized("Wallhaven 返回了无法读取的数据。", "Wallhaven returned unreadable data."));
         setStatusMessage({});
+        if (!reset) emit pageAppendFinished(false);
         return;
     }
 
@@ -396,6 +397,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply, quint64 genera
     m_wallpapers = m_onlineWallpapers;
     emit wallpapersChanged();
     emit paginationChanged();
+    if (!reset) emit pageAppendFinished(true);
     setStatusMessage(localized(QString("已加载 %1 / %2 张适合 %3 的壁纸。").arg(m_onlineWallpapers.size()).arg(meta.value("total").toInt(m_onlineWallpapers.size())).arg(m_displayResolution),
         QString("Loaded %1 / %2 wallpapers suitable for %3.").arg(m_onlineWallpapers.size()).arg(meta.value("total").toInt(m_onlineWallpapers.size())).arg(m_displayResolution)));
 }
@@ -433,8 +435,6 @@ void WallpaperController::handleDownloadReply(
         setStatusMessage({});
         return;
     }
-    file.close();
-
     if (m_section == "downloaded") {
         loadDownloadedWallpapers();
     }
@@ -482,6 +482,14 @@ void WallpaperController::setWallpaperFile(const QString &filePath) {
 }
 
 void WallpaperController::setPortalWallpaper(const QString &filePath) {
+    if (m_pendingPortalImage) {
+        QDBusConnection::sessionBus().disconnect(
+            QString(), m_pendingPortalRequestPath, "org.freedesktop.portal.Request", "Response", this,
+            SLOT(handlePortalResponse(uint,QVariantMap))
+        );
+        m_pendingPortalImage->deleteLater();
+        m_pendingPortalImage = nullptr;
+    }
     auto *image = new QFile(filePath, this);
     if (!image->open(QIODevice::ReadOnly)) {
         image->deleteLater();
@@ -512,34 +520,57 @@ void WallpaperController::setPortalWallpaper(const QString &filePath) {
     const QString expectedPath = "/org/freedesktop/portal/desktop/request/" + sender + "/" + token;
     const QDBusUnixFileDescriptor descriptor(image->handle());
 
-    auto connection = std::make_shared<QMetaObject::Connection>();
-    *connection = QDBusConnection::sessionBus().connect(
-        QString(), expectedPath, "org.freedesktop.portal.Request", "Response", this,
-        [this, image, connection, filePath](uint response, const QVariantMap &) {
-            QObject::disconnect(*connection);
-            image->deleteLater();
-            if (response == 0) {
-                setErrorMessage({});
-                setStatusMessage(localized("已通过系统门户设为桌面壁纸：", "Set as desktop wallpaper through the system portal: ") + QFileInfo(filePath).fileName());
-            } else if (response == 1) {
-                setErrorMessage({});
-                setStatusMessage(localized("已取消壁纸预览。", "Wallpaper preview was cancelled."));
-            } else {
-                setErrorMessage(localized("XDG 壁纸门户未能设置壁纸。", "The XDG Wallpaper Portal could not set the wallpaper."));
-            }
-        }
-    );
+    QDBusConnection bus = QDBusConnection::sessionBus();
+    if (!bus.connect(
+            QString(), expectedPath, "org.freedesktop.portal.Request", "Response", this,
+            SLOT(handlePortalResponse(uint,QVariantMap))
+        )) {
+        image->deleteLater();
+        setErrorMessage(localized("无法监听 XDG 壁纸门户响应。", "Unable to listen for the XDG Wallpaper Portal response."));
+        return;
+    }
+    m_pendingPortalImage = image;
+    m_pendingPortalRequestPath = expectedPath;
+    m_pendingPortalFilePath = filePath;
     auto *watcher = new QDBusPendingCallWatcher(
         portal.asyncCallWithArgumentList("SetWallpaperFile", {QString(), QVariant::fromValue(descriptor), options}), this);
-    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, image, connection] {
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher] {
         if (watcher->isError()) {
-            QObject::disconnect(*connection);
-            image->deleteLater();
+            QDBusConnection::sessionBus().disconnect(
+                QString(), m_pendingPortalRequestPath, "org.freedesktop.portal.Request", "Response", this,
+                SLOT(handlePortalResponse(uint,QVariantMap))
+            );
+            if (m_pendingPortalImage) m_pendingPortalImage->deleteLater();
+            m_pendingPortalImage = nullptr;
+            m_pendingPortalRequestPath.clear();
+            m_pendingPortalFilePath.clear();
             setErrorMessage(localized("XDG 壁纸门户拒绝请求：", "XDG Wallpaper Portal rejected the request: ") + watcher->error().message());
         }
         watcher->deleteLater();
     });
     setStatusMessage(localized("正在等待系统确认壁纸更改…", "Waiting for system confirmation of the wallpaper change…"));
+}
+
+void WallpaperController::handlePortalResponse(uint response, const QVariantMap &) {
+    QDBusConnection::sessionBus().disconnect(
+        QString(), m_pendingPortalRequestPath, "org.freedesktop.portal.Request", "Response", this,
+        SLOT(handlePortalResponse(uint,QVariantMap))
+    );
+    if (m_pendingPortalImage) m_pendingPortalImage->deleteLater();
+    const QString filePath = m_pendingPortalFilePath;
+    m_pendingPortalImage = nullptr;
+    m_pendingPortalRequestPath.clear();
+    m_pendingPortalFilePath.clear();
+
+    if (response == 0) {
+        setErrorMessage({});
+        setStatusMessage(localized("已通过系统门户设为桌面壁纸：", "Set as desktop wallpaper through the system portal: ") + QFileInfo(filePath).fileName());
+    } else if (response == 1) {
+        setErrorMessage({});
+        setStatusMessage(localized("已取消壁纸预览。", "Wallpaper preview was cancelled."));
+    } else {
+        setErrorMessage(localized("XDG 壁纸门户未能设置壁纸。", "The XDG Wallpaper Portal could not set the wallpaper."));
+    }
 }
 
 QString WallpaperController::ensureDownloadDirectory() {

@@ -18,6 +18,8 @@ ApplicationWindow {
 
     property int selectedIndex: controller.wallpapers.length > 0 ? 0 : -1
     property var selectedWallpaper: selectedIndex >= 0 ? controller.wallpapers[selectedIndex] : null
+    property bool preserveGridPositionForAppend: false
+    property real gridPositionBeforeAppend: 0
     onVisibleChanged: if (visible) controller.refreshDesktopCapability()
 
     function t(chinese, english) {
@@ -25,10 +27,18 @@ ApplicationWindow {
     }
 
     function submitCurrentSearch() {
+        preserveGridPositionForAppend = false
         const categories = ["general", "anime", "people", "all"]
         const purity = ["sfw", "sketchy", "all"]
         const sorting = ["toplist", "date_added", "favorites", "random", "views", "relevance"]
         controller.search(searchField.text, categories[categoryBox.currentIndex], purity[purityBox.currentIndex], sorting[sortingBox.currentIndex])
+    }
+
+    function loadNextPagePreservingPosition() {
+        if (!controller.canLoadMore || controller.searching) return
+        gridPositionBeforeAppend = wallpaperGrid.contentY
+        preserveGridPositionForAppend = true
+        controller.loadNextPage()
     }
 
     color: bluecurve.base
@@ -300,7 +310,7 @@ ApplicationWindow {
                     model: controller.wallpapers
                     onContentYChanged: {
                         if (controller.section === "online" && contentY + height >= contentHeight - cellHeight * 1.5) {
-                            controller.loadNextPage()
+                            window.loadNextPagePreservingPosition()
                         }
                     }
                     delegate: Item {
@@ -446,7 +456,7 @@ ApplicationWindow {
                 text: window.t("下一页", "Next page")
                 visible: controller.section === "online"
                 enabled: controller.canLoadMore && !controller.searching
-                onClicked: controller.loadNextPage()
+                onClicked: window.loadNextPagePreservingPosition()
             }
         }
     }
@@ -454,7 +464,21 @@ ApplicationWindow {
     Connections {
         target: controller
         function onWallpapersChanged() {
-            selectedIndex = controller.wallpapers.length > 0 ? 0 : -1
+            if (!window.preserveGridPositionForAppend) {
+                selectedIndex = controller.wallpapers.length > 0 ? 0 : -1
+            }
+        }
+        function onPageAppendFinished(success) {
+            if (!window.preserveGridPositionForAppend) return
+            if (success) {
+                Qt.callLater(function() {
+                    const maximumY = Math.max(0, wallpaperGrid.contentHeight - wallpaperGrid.height)
+                    wallpaperGrid.contentY = Math.min(window.gridPositionBeforeAppend, maximumY)
+                    window.preserveGridPositionForAppend = false
+                })
+            } else {
+                window.preserveGridPositionForAppend = false
+            }
         }
     }
 
