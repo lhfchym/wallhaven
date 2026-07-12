@@ -3,6 +3,7 @@
 #include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QObject>
+#include <QPointer>
 #include <QUrl>
 #include <QVariantList>
 
@@ -76,10 +77,11 @@ private:
     void setStatusMessage(const QString &message);
     void setErrorMessage(const QString &message);
     void updateDisplayResolution();
-    void handleSearchReply(QNetworkReply *reply);
+    void handleSearchReply(QNetworkReply *reply, quint64 generation, int page, bool reset);
     void handleDownloadReply(QNetworkReply *reply, const QVariantMap &wallpaper, bool setWhenFinished);
-    bool setPlasmaWallpaper(const QString &filePath);
-    bool setPortalWallpaper(const QString &filePath);
+    void setWallpaperFile(const QString &filePath);
+    void setPortalWallpaper(const QString &filePath);
+    void cancelActiveSearch();
     QString ensureDownloadDirectory();
     QString categoriesValue(const QString &category) const;
     QString purityValue(const QString &purity) const;
@@ -109,6 +111,9 @@ private:
     QString m_apiKey;
     QString m_legacyApiKey;
     QString m_seed;
+    QPointer<QNetworkReply> m_activeSearchReply;
+    quint64 m_searchGeneration = 0;
+    quint64 m_credentialGeneration = 0;
     int m_currentPage = 1;
     int m_lastPage = 1;
     bool m_strictAspectRatio = false;

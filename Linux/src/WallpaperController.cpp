@@ -1,6 +1,7 @@
 #include "WallpaperController.h"
 
 #include <algorithm>
+#include <memory>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -11,18 +12,38 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QProcess>
+#include <QRandomGenerator>
+#include <QSaveFile>
 #include <QScreen>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QTimer>
 #include <QUrlQuery>
+#include <QWindow>
 #include <QDBusInterface>
-#include <QDBusReply>
+#include <QDBusPendingCallWatcher>
 #include <QDBusUnixFileDescriptor>
 #include <KWallet>
 
 namespace {
 constexpr auto kUserAgent = "WallhavenLinux/0.1 (Kubuntu Plasma)";
+constexpr qint64 kMaximumDownloadBytes = 100 * 1024 * 1024;
+
+QString safeFileComponent(const QString &value, const QString &fallback) {
+    QString result;
+    for (const QChar character : value) {
+        if (character.isLetterOrNumber() || character == '-' || character == '_') result.append(character);
+    }
+    return result.isEmpty() ? fallback : result;
+}
+
+QString wallpaperFilePath(const QString &directory, const QVariantMap &wallpaper) {
+    const QUrl source(wallpaper.value("path").toString());
+    QString extension = safeFileComponent(QFileInfo(source.path()).suffix().toLower(), "jpg");
+    if (extension.size() > 5) extension = "jpg";
+    return directory + "/wallhaven-" + safeFileComponent(wallpaper.value("id").toString(), "unknown")
+        + "-" + safeFileComponent(wallpaper.value("resolution").toString(), "image") + "." + extension;
+}
 }
 
 WallpaperController::WallpaperController(QObject *parent)
@@ -43,7 +64,14 @@ WallpaperController::WallpaperController(QObject *parent)
     connect(qGuiApp, &QGuiApplication::primaryScreenChanged, this, [this] {
         updateDisplayResolution();
     });
-    loadApiKeyFromKWallet();
+    connect(qGuiApp, &QGuiApplication::screenAdded, this, [this](QScreen *) {
+        updateDisplayResolution();
+    });
+    connect(qGuiApp, &QGuiApplication::screenRemoved, this, [this](QScreen *) {
+        updateDisplayResolution();
+    });
+    // KWallet may show an unlock dialog. Defer it until Qt has created the window and event loop.
+    QTimer::singleShot(0, this, &WallpaperController::loadApiKeyFromKWallet);
 }
 
 QVariantList WallpaperController::wallpapers() const { return m_wallpapers; }
@@ -84,11 +112,12 @@ void WallpaperController::download(int index, bool setWhenFinished) {
     }
 
     const QVariantMap wallpaper = m_wallpapers.at(index).toMap();
-    const QString cachedPath = ensureDownloadDirectory() + "/wallhaven-" + wallpaper.value("id").toString()
-        + "-" + wallpaper.value("resolution").toString() + "." + QFileInfo(QUrl(wallpaper.value("path").toString()).path()).suffix();
+    const QString directory = ensureDownloadDirectory();
+    if (directory.isEmpty()) return;
+    const QString cachedPath = wallpaperFilePath(directory, wallpaper);
     if (QFileInfo::exists(cachedPath)) {
         if (setWhenFinished) {
-            if (setPlasmaWallpaper(cachedPath)) setStatusMessage(localized("已设为 Plasma 桌面壁纸：", "Set as Plasma wallpaper: ") + QFileInfo(cachedPath).fileName());
+            setWallpaperFile(cachedPath);
         } else {
             QDesktopServices::openUrl(QUrl::fromLocalFile(cachedPath));
             setStatusMessage(localized("壁纸已下载，已在文件管理器中打开。", "Wallpaper is already downloaded and was opened in the file manager."));
@@ -122,9 +151,7 @@ void WallpaperController::setWallpaper(int index) {
     }
     const QVariantMap wallpaper = m_wallpapers.at(index).toMap();
     if (m_section == "downloaded") {
-        if (setPlasmaWallpaper(wallpaper.value("localPath").toString())) {
-            setStatusMessage(localized("已设为 Plasma 桌面壁纸：", "Set as Plasma wallpaper: ") + wallpaper.value("fileName").toString());
-        }
+        setWallpaperFile(wallpaper.value("localPath").toString());
         return;
     }
     download(index, true);
@@ -132,6 +159,7 @@ void WallpaperController::setWallpaper(int index) {
 
 void WallpaperController::showSection(const QString &section) {
     if (section == "downloaded") {
+        cancelActiveSearch();
         m_section = "downloaded";
         loadDownloadedWallpapers();
     } else {
@@ -154,7 +182,6 @@ void WallpaperController::loadNextPage() {
     if (!canLoadMore() || m_searching) {
         return;
     }
-    ++m_currentPage;
     requestSearch(false);
 }
 
@@ -194,7 +221,10 @@ void WallpaperController::setApiKey(const QString &apiKey) {
 void WallpaperController::setDownloadDirectory(const QUrl &directory) {
     const QString path = directory.isLocalFile() ? directory.toLocalFile() : directory.toString();
     if (path.isEmpty()) return;
-    QDir().mkpath(path);
+    if (!QDir().mkpath(path) || !QFileInfo(path).isDir() || !QFileInfo(path).isWritable()) {
+        setErrorMessage(localized("下载目录不可创建或不可写：", "The download folder cannot be created or written: ") + path);
+        return;
+    }
     m_downloadDirectory = path;
     persistPreferences();
     emit downloadDirectoryChanged();
@@ -202,6 +232,12 @@ void WallpaperController::setDownloadDirectory(const QUrl &directory) {
 
 void WallpaperController::chooseDownloadDirectory() {
     auto *dialog = new QProcess(this);
+    connect(dialog, &QProcess::errorOccurred, this, [this, dialog](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart) {
+            setErrorMessage(localized("无法启动 KDE 目录选择器。", "Unable to start the KDE folder picker."));
+            dialog->deleteLater();
+        }
+    });
     connect(dialog, &QProcess::finished, this, [this, dialog](int exitCode, QProcess::ExitStatus exitStatus) {
         const QString selectedPath = QString::fromUtf8(dialog->readAllStandardOutput()).trimmed();
         if (exitStatus == QProcess::NormalExit && exitCode == 0 && !selectedPath.isEmpty()) {
@@ -291,7 +327,9 @@ QString WallpaperController::localized(const QString &chinese, const QString &en
 
 void WallpaperController::updateDisplayResolution() {
     const QScreen *screen = qGuiApp->primaryScreen();
-    const QSize size = screen ? screen->size() : QSize(1920, 1080);
+    const QSize logicalSize = screen ? screen->size() : QSize(1920, 1080);
+    const qreal scale = screen ? screen->devicePixelRatio() : 1.0;
+    const QSize size(qRound(logicalSize.width() * scale), qRound(logicalSize.height() * scale));
     const QString resolution = QString::number(size.width()) + "x" + QString::number(size.height());
     if (m_displayResolution != resolution) {
         m_displayResolution = resolution;
@@ -299,13 +337,27 @@ void WallpaperController::updateDisplayResolution() {
     }
 }
 
-void WallpaperController::handleSearchReply(QNetworkReply *reply) {
+void WallpaperController::cancelActiveSearch() {
+    ++m_searchGeneration;
+    if (m_activeSearchReply) {
+        m_activeSearchReply->abort();
+        m_activeSearchReply = nullptr;
+    }
+    if (m_searching) {
+        m_searching = false;
+        emit searchingChanged();
+    }
+}
+
+void WallpaperController::handleSearchReply(QNetworkReply *reply, quint64 generation, int page, bool reset) {
+    const auto cleanup = qScopeGuard([reply] { reply->deleteLater(); });
+    if (reply == m_activeSearchReply) m_activeSearchReply = nullptr;
+    if (generation != m_searchGeneration || m_section != "online") return;
+
     m_searching = false;
     emit searchingChanged();
 
-    const auto cleanup = qScopeGuard([reply] { reply->deleteLater(); });
     if (reply->error() != QNetworkReply::NoError) {
-        if (m_currentPage > 1) --m_currentPage;
         setErrorMessage(localized("搜索失败：", "Search failed: ") + reply->errorString());
         setStatusMessage({});
         return;
@@ -329,7 +381,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply) {
     const QJsonObject meta = document.object().value("meta").toObject();
     m_lastPage = meta.value("last_page").toInt(1);
     m_seed = meta.value("seed").toString();
-    if (m_currentPage == 1) {
+    if (reset) {
         m_onlineWallpapers = results;
     } else {
         for (const QVariant &candidate : results) {
@@ -340,6 +392,7 @@ void WallpaperController::handleSearchReply(QNetworkReply *reply) {
             if (!duplicate) m_onlineWallpapers.append(candidate);
         }
     }
+    m_currentPage = page;
     m_wallpapers = m_onlineWallpapers;
     emit wallpapersChanged();
     emit paginationChanged();
@@ -363,16 +416,19 @@ void WallpaperController::handleDownloadReply(
     }
 
     const QString directory = ensureDownloadDirectory();
-    const QUrl source(wallpaper.value("path").toString());
-    QString extension = QFileInfo(source.path()).suffix();
-    if (extension.isEmpty()) {
-        extension = "jpg";
+    if (directory.isEmpty()) return;
+    const QByteArray payload = reply->readAll();
+    const qint64 advertisedSize = reply->header(QNetworkRequest::ContentLengthHeader).toLongLong();
+    const QString contentType = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+    if (payload.isEmpty() || payload.size() > kMaximumDownloadBytes || advertisedSize > kMaximumDownloadBytes
+        || (!contentType.isEmpty() && !contentType.startsWith("image/", Qt::CaseInsensitive))) {
+        setErrorMessage(localized("下载的内容不是可接受的图片文件。", "The download did not contain an acceptable image file."));
+        setStatusMessage({});
+        return;
     }
-    const QString filePath = directory + "/wallhaven-" + wallpaper.value("id").toString()
-        + "-" + wallpaper.value("resolution").toString() + "." + extension;
-
-    QFile file(filePath);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate) || file.write(reply->readAll()) < 0) {
+    const QString filePath = wallpaperFilePath(directory, wallpaper);
+    QSaveFile file(filePath);
+    if (!file.open(QIODevice::WriteOnly) || file.write(payload) != payload.size() || !file.commit()) {
         setErrorMessage(localized("无法保存壁纸到：", "Cannot save wallpaper to: ") + filePath);
         setStatusMessage({});
         return;
@@ -384,15 +440,13 @@ void WallpaperController::handleDownloadReply(
     }
 
     if (setWhenFinished) {
-        if (setPlasmaWallpaper(filePath)) {
-            setStatusMessage(localized("已下载并设为 Plasma 桌面壁纸：", "Downloaded and set as Plasma wallpaper: ") + QFileInfo(filePath).fileName());
-        }
+        setWallpaperFile(filePath);
     } else {
         setStatusMessage(localized("下载完成：", "Download complete: ") + QFileInfo(filePath).fileName());
     }
 }
 
-bool WallpaperController::setPlasmaWallpaper(const QString &filePath) {
+void WallpaperController::setWallpaperFile(const QString &filePath) {
     const QString imageUrl = QUrl::fromLocalFile(filePath).toString(QUrl::FullyEncoded);
     const QString script = QStringLiteral(R"(
         var allDesktops = desktops();
@@ -411,20 +465,28 @@ bool WallpaperController::setPlasmaWallpaper(const QString &filePath) {
         QDBusConnection::sessionBus()
     );
     if (plasma.isValid()) {
-        const QDBusMessage reply = plasma.call("evaluateScript", script);
-        if (reply.type() != QDBusMessage::ErrorMessage) {
-            setErrorMessage({});
-            return true;
-        }
+        auto *watcher = new QDBusPendingCallWatcher(plasma.asyncCall("evaluateScript", script), this);
+        connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, filePath] {
+            if (!watcher->isError()) {
+                setErrorMessage({});
+                setStatusMessage(localized("已设为 Plasma 桌面壁纸：", "Set as Plasma wallpaper: ") + QFileInfo(filePath).fileName());
+            } else {
+                setPortalWallpaper(filePath);
+            }
+            watcher->deleteLater();
+        });
+        setStatusMessage(localized("正在请求 Plasma 设置壁纸…", "Requesting Plasma wallpaper change…"));
+        return;
     }
-    return setPortalWallpaper(filePath);
+    setPortalWallpaper(filePath);
 }
 
-bool WallpaperController::setPortalWallpaper(const QString &filePath) {
-    QFile image(filePath);
-    if (!image.open(QIODevice::ReadOnly)) {
+void WallpaperController::setPortalWallpaper(const QString &filePath) {
+    auto *image = new QFile(filePath, this);
+    if (!image->open(QIODevice::ReadOnly)) {
+        image->deleteLater();
         setErrorMessage(localized("无法打开壁纸文件：", "Cannot open wallpaper file: ") + filePath);
-        return false;
+        return;
     }
 
     QDBusInterface portal(
@@ -434,33 +496,59 @@ bool WallpaperController::setPortalWallpaper(const QString &filePath) {
         QDBusConnection::sessionBus()
     );
     if (!portal.isValid()) {
+        image->deleteLater();
         setErrorMessage(localized("没有可用的壁纸服务。", "No wallpaper service is available."));
-        return false;
+        return;
     }
 
     QVariantMap options;
     options.insert("show-preview", true);
     options.insert("set-on", "background");
-    const QDBusUnixFileDescriptor descriptor(image.handle());
-    const QDBusMessage reply = portal.call(
-        "SetWallpaperFile",
-        QString(),
-        QVariant::fromValue(descriptor),
-        options
+    const QString token = QString::number(QRandomGenerator::system()->generate64(), 16);
+    options.insert("handle_token", token);
+    QString sender = QDBusConnection::sessionBus().baseService();
+    sender.replace(':', '_');
+    sender.replace('.', '_');
+    const QString expectedPath = "/org/freedesktop/portal/desktop/request/" + sender + "/" + token;
+    const QDBusUnixFileDescriptor descriptor(image->handle());
+
+    auto connection = std::make_shared<QMetaObject::Connection>();
+    *connection = QDBusConnection::sessionBus().connect(
+        QString(), expectedPath, "org.freedesktop.portal.Request", "Response", this,
+        [this, image, connection, filePath](uint response, const QVariantMap &) {
+            QObject::disconnect(*connection);
+            image->deleteLater();
+            if (response == 0) {
+                setErrorMessage({});
+                setStatusMessage(localized("已通过系统门户设为桌面壁纸：", "Set as desktop wallpaper through the system portal: ") + QFileInfo(filePath).fileName());
+            } else if (response == 1) {
+                setErrorMessage({});
+                setStatusMessage(localized("已取消壁纸预览。", "Wallpaper preview was cancelled."));
+            } else {
+                setErrorMessage(localized("XDG 壁纸门户未能设置壁纸。", "The XDG Wallpaper Portal could not set the wallpaper."));
+            }
+        }
     );
-    if (reply.type() == QDBusMessage::ErrorMessage) {
-        setErrorMessage(localized("XDG 壁纸门户拒绝请求：", "XDG Wallpaper Portal rejected the request: ") + reply.errorMessage());
-        return false;
-    }
-    setErrorMessage({});
+    auto *watcher = new QDBusPendingCallWatcher(
+        portal.asyncCallWithArgumentList("SetWallpaperFile", {QString(), QVariant::fromValue(descriptor), options}), this);
+    connect(watcher, &QDBusPendingCallWatcher::finished, this, [this, watcher, image, connection] {
+        if (watcher->isError()) {
+            QObject::disconnect(*connection);
+            image->deleteLater();
+            setErrorMessage(localized("XDG 壁纸门户拒绝请求：", "XDG Wallpaper Portal rejected the request: ") + watcher->error().message());
+        }
+        watcher->deleteLater();
+    });
     setStatusMessage(localized("正在等待系统确认壁纸更改…", "Waiting for system confirmation of the wallpaper change…"));
-    return true;
 }
 
 QString WallpaperController::ensureDownloadDirectory() {
     if (!m_downloadDirectory.isEmpty()) {
-        QDir().mkpath(m_downloadDirectory);
-        return m_downloadDirectory;
+        if (QDir().mkpath(m_downloadDirectory) && QFileInfo(m_downloadDirectory).isDir() && QFileInfo(m_downloadDirectory).isWritable()) {
+            return m_downloadDirectory;
+        }
+        setErrorMessage(localized("下载目录不可创建或不可写：", "The download folder cannot be created or written: ") + m_downloadDirectory);
+        return {};
     }
 
     QString pictures = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
@@ -468,7 +556,10 @@ QString WallpaperController::ensureDownloadDirectory() {
         pictures = QDir::homePath() + "/Pictures";
     }
     const QString path = pictures + "/WallhavenLinux";
-    QDir().mkpath(path);
+    if (!QDir().mkpath(path) || !QFileInfo(path).isWritable()) {
+        setErrorMessage(localized("无法创建默认下载目录：", "Unable to create the default download folder: ") + path);
+        return {};
+    }
     m_downloadDirectory = path;
     emit downloadDirectoryChanged();
     return m_downloadDirectory;
@@ -502,11 +593,16 @@ QVariantMap WallpaperController::wallpaperFromJson(const QJsonObject &wallpaper)
 }
 
 void WallpaperController::requestSearch(bool reset) {
-    if (m_searching) return;
+    if (!reset && m_searching) return;
+    const quint64 generation = ++m_searchGeneration;
+    if (m_activeSearchReply) {
+        m_activeSearchReply->abort();
+        m_activeSearchReply = nullptr;
+    }
+    const int page = reset ? 1 : m_currentPage + 1;
+    const QString seed = reset ? QString() : m_seed;
     if (reset) {
-        m_currentPage = 1;
         m_lastPage = 1;
-        m_seed.clear();
     }
 
     QUrl url("https://wallhaven.cc/api/v1/search");
@@ -516,8 +612,8 @@ void WallpaperController::requestSearch(bool reset) {
     parameters.addQueryItem("purity", purityValue(m_purity));
     parameters.addQueryItem("sorting", m_sorting);
     parameters.addQueryItem("atleast", m_displayResolution);
-    parameters.addQueryItem("page", QString::number(m_currentPage));
-    if (!m_seed.isEmpty()) parameters.addQueryItem("seed", m_seed);
+    parameters.addQueryItem("page", QString::number(page));
+    if (!seed.isEmpty()) parameters.addQueryItem("seed", seed);
     if (m_strictAspectRatio) {
         const QStringList dimensions = m_displayResolution.split('x');
         if (dimensions.size() == 2) {
@@ -536,10 +632,11 @@ void WallpaperController::requestSearch(bool reset) {
     request.setTransferTimeout(15'000);
     m_searching = true;
     setErrorMessage({});
-    setStatusMessage(m_currentPage == 1 ? localized("正在从 Wallhaven 获取壁纸…", "Fetching wallpapers from Wallhaven…") : localized("正在加载下一页壁纸…", "Loading the next wallpaper page…"));
+    setStatusMessage(page == 1 ? localized("正在从 Wallhaven 获取壁纸…", "Fetching wallpapers from Wallhaven…") : localized("正在加载下一页壁纸…", "Loading the next wallpaper page…"));
     emit searchingChanged();
     QNetworkReply *reply = m_network.get(request);
-    connect(reply, &QNetworkReply::finished, this, [this, reply] { handleSearchReply(reply); });
+    m_activeSearchReply = reply;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, generation, page, reset] { handleSearchReply(reply, generation, page, reset); });
 }
 
 void WallpaperController::loadDownloadedWallpapers() {
@@ -586,36 +683,61 @@ void WallpaperController::persistPreferences() {
 }
 
 void WallpaperController::loadApiKeyFromKWallet() {
-    auto *wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0);
+    const quint64 generation = m_credentialGeneration;
+    const QWindow *window = qGuiApp->focusWindow();
+    auto *wallet = KWallet::Wallet::openWallet(
+        KWallet::Wallet::LocalWallet(), window ? window->winId() : 0, KWallet::Wallet::Asynchronous
+    );
     if (!wallet) {
         m_apiKey = m_legacyApiKey;
+        emit apiKeyChanged();
         return;
     }
-    if (!wallet->hasFolder("WallhavenLinux")) wallet->createFolder("WallhavenLinux");
-    QString storedKey;
-    if (wallet->setFolder("WallhavenLinux") && wallet->readPassword("apiKey", storedKey) == 0 && !storedKey.isEmpty()) {
-        m_apiKey = storedKey;
-    } else if (!m_legacyApiKey.isEmpty()) {
-        m_apiKey = m_legacyApiKey;
-        saveApiKeyToKWallet();
-    }
-    delete wallet;
-    emit apiKeyChanged();
+    connect(wallet, &KWallet::Wallet::walletOpened, this, [this, wallet, generation](bool success) {
+        const auto cleanup = qScopeGuard([wallet] { wallet->deleteLater(); });
+        if (!success || generation != m_credentialGeneration) return;
+        if (!wallet->hasFolder("WallhavenLinux") && !wallet->createFolder("WallhavenLinux")) {
+            m_apiKey = m_legacyApiKey;
+            emit apiKeyChanged();
+            return;
+        }
+        QString storedKey;
+        if (wallet->setFolder("WallhavenLinux") && wallet->readPassword("apiKey", storedKey) == 0 && !storedKey.isEmpty()) {
+            m_apiKey = storedKey;
+            emit apiKeyChanged();
+        } else if (!m_legacyApiKey.isEmpty()) {
+            m_apiKey = m_legacyApiKey;
+            emit apiKeyChanged();
+            saveApiKeyToKWallet();
+        }
+    });
 }
 
 void WallpaperController::saveApiKeyToKWallet() {
-    auto *wallet = KWallet::Wallet::openWallet(KWallet::Wallet::LocalWallet(), 0);
+    const quint64 generation = ++m_credentialGeneration;
+    const QString apiKey = m_apiKey;
+    const QWindow *window = qGuiApp->focusWindow();
+    auto *wallet = KWallet::Wallet::openWallet(
+        KWallet::Wallet::LocalWallet(), window ? window->winId() : 0, KWallet::Wallet::Asynchronous
+    );
     if (!wallet) {
         setErrorMessage(localized("无法打开 KDE Wallet。", "Unable to open KDE Wallet."));
         return;
     }
-    if (!wallet->hasFolder("WallhavenLinux") && !wallet->createFolder("WallhavenLinux")) {
-        setErrorMessage(localized("无法创建 KDE Wallet 存储区。", "Unable to create the KDE Wallet storage folder."));
-    } else if (!wallet->setFolder("WallhavenLinux") || wallet->writePassword("apiKey", m_apiKey) != 0) {
-        setErrorMessage(localized("无法保存 API Key 到 KDE Wallet。", "Unable to save the API key to KDE Wallet."));
-    } else {
-        QSettings().remove("account/apiKey");
-        setErrorMessage({});
-    }
-    delete wallet;
+    connect(wallet, &KWallet::Wallet::walletOpened, this, [this, wallet, generation, apiKey](bool success) {
+        const auto cleanup = qScopeGuard([wallet] { wallet->deleteLater(); });
+        if (generation != m_credentialGeneration) return;
+        if (!success) {
+            setErrorMessage(localized("KDE Wallet 拒绝了保存 API Key 的请求。", "KDE Wallet declined the API key save request."));
+        } else if (!wallet->hasFolder("WallhavenLinux") && !wallet->createFolder("WallhavenLinux")) {
+            setErrorMessage(localized("无法创建 KDE Wallet 存储区。", "Unable to create the KDE Wallet storage folder."));
+        } else if (!wallet->setFolder("WallhavenLinux")
+            || (apiKey.isEmpty() ? wallet->removeEntry("apiKey") : wallet->writePassword("apiKey", apiKey)) != 0
+            || wallet->sync() != 0) {
+            setErrorMessage(localized("无法保存 API Key 到 KDE Wallet。", "Unable to save the API key to KDE Wallet."));
+        } else {
+            QSettings().remove("account/apiKey");
+            setErrorMessage({});
+        }
+    });
 }

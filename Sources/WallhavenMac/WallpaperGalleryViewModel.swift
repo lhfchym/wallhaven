@@ -27,8 +27,11 @@ final class WallpaperGalleryViewModel: ObservableObject {
     private let wallpaperSetter: DesktopWallpaperSetting
     private let historyStore: WallpaperHistoryStoring
     private let preferencesStore: WallhavenUserPreferencesStoring
+    private var searchTask: Task<Void, Never>?
+    private var searchGeneration = 0
     private var currentPage = 1
     private var currentSeed: String?
+    private var downloadedWallpaperID: String?
 
     init(
         client: WallhavenFetching = WallhavenClient(),
@@ -79,7 +82,7 @@ final class WallpaperGalleryViewModel: ObservableObject {
             preferences = await preferencesStore.load()
             query = preferences.query
             await configureDownloadDirectory()
-            await load(reset: true)
+            beginSearch(reset: true)
         }
     }
 
@@ -89,18 +92,12 @@ final class WallpaperGalleryViewModel: ObservableObject {
             return
         }
 
-        Task {
-            await saveCurrentPreferences()
-            await load(reset: true)
-        }
+        beginSearch(reset: true, savePreferences: true)
     }
 
     func submitSearch() {
         selectedSection = .online
-        Task {
-            await saveCurrentPreferences()
-            await load(reset: true)
-        }
+        beginSearch(reset: true, savePreferences: true)
     }
 
     func updateCategory(_ category: WallhavenCategoryPreset) {
@@ -145,13 +142,16 @@ final class WallpaperGalleryViewModel: ObservableObject {
             await configureDownloadDirectory()
 
             if let selectedWallpaper {
-                downloadedWallpaperURL = await fileStore.cachedURL(for: selectedWallpaper)
+                let selectedID = selectedWallpaper.id
+                let cachedURL = await fileStore.cachedURL(for: selectedWallpaper)
+                guard self.selectedWallpaper?.id == selectedID else { return }
+                setDownloadedURL(cachedURL, for: selectedID)
             } else {
-                downloadedWallpaperURL = nil
+                setDownloadedURL(nil, for: nil)
             }
 
             if didChangeAspectRatioMode {
-                await load(reset: true)
+                beginSearch(reset: true)
             }
         }
     }
@@ -186,15 +186,13 @@ final class WallpaperGalleryViewModel: ObservableObject {
     func loadNextPage() {
         guard selectedSection == .online, canLoadMore, !isLoading else { return }
 
-        Task {
-            await load(reset: false)
-        }
+        beginSearch(reset: false)
     }
 
     func select(_ wallpaper: WallhavenWallpaper) {
         selectedSection = .online
         selectedWallpaper = wallpaper
-        downloadedWallpaperURL = nil
+        setDownloadedURL(nil, for: nil)
         successMessage = nil
         updateCachedDownloadStatus(for: wallpaper)
     }
@@ -245,17 +243,41 @@ final class WallpaperGalleryViewModel: ObservableObject {
 }
 
 private extension WallpaperGalleryViewModel {
-    private func load(reset: Bool) async {
+    private func beginSearch(reset: Bool, savePreferences: Bool = false) {
+        searchGeneration += 1
+        let generation = searchGeneration
+        searchTask?.cancel()
+        searchTask = Task { [weak self] in
+            guard let self else { return }
+            if savePreferences {
+                await self.saveCurrentPreferences()
+            }
+            guard !Task.isCancelled, generation == self.searchGeneration else { return }
+            await self.load(reset: reset, generation: generation)
+        }
+    }
+
+    private func load(reset: Bool, generation: Int) async {
+        guard generation == searchGeneration else { return }
         isLoading = true
         errorMessage = nil
         successMessage = nil
 
+        defer {
+            if generation == searchGeneration {
+                isLoading = false
+            }
+        }
+
+        let displaySnapshot = DisplayProfileProvider.current()
+        let requestedPage: Int
+        let requestedSeed: String?
         if reset {
-            refreshDisplay()
-            currentPage = 1
-            currentSeed = nil
+            requestedPage = 1
+            requestedSeed = nil
         } else {
-            currentPage += 1
+            requestedPage = currentPage + 1
+            requestedSeed = currentSeed
         }
 
         let request = WallpaperSearchRequest(
@@ -266,14 +288,18 @@ private extension WallpaperGalleryViewModel {
                 sorting: preferences.sorting,
                 strictAspectRatio: preferences.strictAspectRatio
             ),
-            display: display,
-            page: currentPage,
-            seed: currentSeed
+            display: displaySnapshot,
+            page: requestedPage,
+            seed: requestedSeed
         )
 
         do {
             let response = try await client.search(request, apiKey: preferences.apiKey)
-            let displayWallpapers = await prioritizedWallpapers(from: response.data)
+            guard !Task.isCancelled, generation == searchGeneration else { return }
+            let displayWallpapers = await prioritizedWallpapers(from: response.data, display: displaySnapshot)
+            guard !Task.isCancelled, generation == searchGeneration else { return }
+            display = displaySnapshot
+            currentPage = requestedPage
             meta = response.meta
             currentSeed = response.meta.seed
 
@@ -281,9 +307,12 @@ private extension WallpaperGalleryViewModel {
                 wallpapers = displayWallpapers
                 selectedWallpaper = displayWallpapers.first
                 if let selectedWallpaper {
-                    downloadedWallpaperURL = await fileStore.cachedURL(for: selectedWallpaper)
+                    let selectedID = selectedWallpaper.id
+                    let cachedURL = await fileStore.cachedURL(for: selectedWallpaper)
+                    guard !Task.isCancelled, generation == searchGeneration, self.selectedWallpaper?.id == selectedID else { return }
+                    setDownloadedURL(cachedURL, for: selectedID)
                 } else {
-                    downloadedWallpaperURL = nil
+                    setDownloadedURL(nil, for: nil)
                 }
             } else {
                 wallpapers.append(contentsOf: displayWallpapers.filter { candidate in
@@ -293,14 +322,10 @@ private extension WallpaperGalleryViewModel {
 
             await historyStore.recordDisplayed(displayWallpapers)
         } catch {
-            if !reset {
-                currentPage = max(currentPage - 1, 1)
-            }
+            guard !Task.isCancelled, generation == searchGeneration else { return }
             errorMessage = readableMessage(for: error)
             logSearchFailure(error, request: request, reset: reset)
         }
-
-        isLoading = false
     }
 
     private func download(wallpaper: WallhavenWallpaper) async {
@@ -309,13 +334,12 @@ private extension WallpaperGalleryViewModel {
         successMessage = nil
 
         do {
-            downloadedWallpaperURL = try await fileStore.downloadedURL(for: wallpaper)
-            await refreshDownloadedWallpapersIfNeeded()
-            if let downloadedWallpaperURL {
-                successMessage = "\(copy.downloadSucceededPrefix)\(downloadedWallpaperURL.lastPathComponent)"
-            } else {
-                successMessage = "\(copy.downloadSucceededIDPrefix)\(wallpaper.id)."
+            let downloadedURL = try await fileStore.downloadedURL(for: wallpaper)
+            if selectedWallpaper?.id == wallpaper.id {
+                setDownloadedURL(downloadedURL, for: wallpaper.id)
             }
+            await refreshDownloadedWallpapersIfNeeded()
+            successMessage = "\(copy.downloadSucceededPrefix)\(downloadedURL.lastPathComponent)"
         } catch {
             errorMessage = "\(copy.downloadFailedPrefix)\(readableMessage(for: error))"
             WallhavenDebugLog.recordError(
@@ -355,12 +379,18 @@ private extension WallpaperGalleryViewModel {
 
         do {
             let imageURL: URL
-            if let downloadedWallpaperURL {
+            if downloadedWallpaperID == wallpaper.id, let downloadedWallpaperURL {
                 imageURL = downloadedWallpaperURL
             } else {
                 isDownloading = true
-                imageURL = try await fileStore.downloadedURL(for: wallpaper)
-                downloadedWallpaperURL = imageURL
+                if let cachedURL = await fileStore.cachedURL(for: wallpaper) {
+                    imageURL = cachedURL
+                } else {
+                    imageURL = try await fileStore.downloadedURL(for: wallpaper)
+                }
+                if selectedWallpaper?.id == wallpaper.id {
+                    setDownloadedURL(imageURL, for: wallpaper.id)
+                }
                 isDownloading = false
                 await refreshDownloadedWallpapersIfNeeded()
             }
@@ -447,16 +477,13 @@ private extension WallpaperGalleryViewModel {
         isDeletingDownloadedWallpaper = false
     }
 
-    private func prioritizedWallpapers(from candidates: [WallhavenWallpaper]) async -> [WallhavenWallpaper] {
+    private func prioritizedWallpapers(from candidates: [WallhavenWallpaper], display: DisplayProfile) async -> [WallhavenWallpaper] {
         let recentIDs = await historyStore.recentWallpaperIDs()
         return WallpaperDisplayPrioritizer.prioritize(candidates, display: display, recentIDs: recentIDs)
     }
 
     private func savePreferencesAndReload() {
-        Task {
-            await saveCurrentPreferences()
-            await load(reset: true)
-        }
+        beginSearch(reset: true, savePreferences: true)
     }
 
     private func saveCurrentPreferences() async {
@@ -487,8 +514,13 @@ private extension WallpaperGalleryViewModel {
 
             guard selectedWallpaper?.id == wallpaper.id else { return }
 
-            downloadedWallpaperURL = cachedURL
+            setDownloadedURL(cachedURL, for: wallpaper.id)
         }
+    }
+
+    func setDownloadedURL(_ url: URL?, for wallpaperID: String?) {
+        downloadedWallpaperURL = url
+        downloadedWallpaperID = url == nil ? nil : wallpaperID
     }
 
     func readableMessage(for error: Error) -> String {
