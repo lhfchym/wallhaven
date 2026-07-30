@@ -1,9 +1,10 @@
 # Wallhaven
 
-Wallhaven wallpaper browser for macOS and KDE Plasma on Linux.
+Wallhaven wallpaper browser for macOS, KDE Plasma on Linux, and Windows.
 
 - `Sources/` contains the original macOS SwiftUI client.
 - `Linux/` contains the Qt 6 / QML client for Kubuntu 26.04 LTS, KDE Plasma and Wayland.
+- `Windows/` contains the Qt 6 / QML client using Windows desktop and credential APIs.
 
 The first milestone is a focused loop:
 

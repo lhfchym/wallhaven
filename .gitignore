@@ -3,7 +3,10 @@
 DerivedData/
 build/
 Linux/build/
+Windows/build*/
+Windows/dist/
 dist/
+/tmp/
 *.xcodeproj/
 *.xcworkspace/
 *.xcuserstate

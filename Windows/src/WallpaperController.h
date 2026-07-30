@@ -1,0 +1,120 @@
+#pragma once
+
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QObject>
+#include <QPointer>
+#include <QUrl>
+#include <QVariantList>
+
+class QNetworkReply;
+
+class WallpaperController : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QVariantList wallpapers READ wallpapers NOTIFY wallpapersChanged)
+    Q_PROPERTY(bool searching READ searching NOTIFY searchingChanged)
+    Q_PROPERTY(bool downloading READ downloading NOTIFY downloadingChanged)
+    Q_PROPERTY(QString statusMessage READ statusMessage NOTIFY statusMessageChanged)
+    Q_PROPERTY(QString errorMessage READ errorMessage NOTIFY errorMessageChanged)
+    Q_PROPERTY(QString displayResolution READ displayResolution NOTIFY displayResolutionChanged)
+    Q_PROPERTY(QString downloadDirectory READ downloadDirectory NOTIFY downloadDirectoryChanged)
+    Q_PROPERTY(bool desktopIntegrationAvailable READ desktopIntegrationAvailable NOTIFY desktopIntegrationAvailableChanged)
+    Q_PROPERTY(QString section READ section NOTIFY sectionChanged)
+    Q_PROPERTY(bool canLoadMore READ canLoadMore NOTIFY paginationChanged)
+    Q_PROPERTY(QString apiKey READ apiKey NOTIFY apiKeyChanged)
+    Q_PROPERTY(bool strictAspectRatio READ strictAspectRatio NOTIFY strictAspectRatioChanged)
+    Q_PROPERTY(QString language READ language NOTIFY languageChanged)
+
+public:
+    explicit WallpaperController(QObject *parent = nullptr);
+
+    QVariantList wallpapers() const;
+    bool searching() const;
+    bool downloading() const;
+    QString statusMessage() const;
+    QString errorMessage() const;
+    QString displayResolution() const;
+    QString downloadDirectory() const;
+    bool desktopIntegrationAvailable() const;
+    QString section() const;
+    bool canLoadMore() const;
+    QString apiKey() const;
+    bool strictAspectRatio() const;
+    QString language() const;
+
+    Q_INVOKABLE void search(const QString &query, const QString &category, const QString &purity, const QString &sorting);
+    Q_INVOKABLE void download(int index, bool setWhenFinished = false);
+    Q_INVOKABLE void setWallpaper(int index);
+    Q_INVOKABLE void openDownloadDirectory();
+    Q_INVOKABLE void refreshDesktopCapability();
+    Q_INVOKABLE void showSection(const QString &section);
+    Q_INVOKABLE void refresh();
+    Q_INVOKABLE void loadNextPage();
+    Q_INVOKABLE void deleteDownloaded(int index);
+    Q_INVOKABLE void openPage(int index);
+    Q_INVOKABLE void setApiKey(const QString &apiKey);
+    Q_INVOKABLE void setDownloadDirectory(const QUrl &directory);
+    Q_INVOKABLE void chooseDownloadDirectory();
+    Q_INVOKABLE void setStrictAspectRatio(bool enabled);
+    Q_INVOKABLE void setLanguage(const QString &language);
+
+signals:
+    void wallpapersChanged();
+    void searchingChanged();
+    void downloadingChanged();
+    void statusMessageChanged();
+    void errorMessageChanged();
+    void displayResolutionChanged();
+    void downloadDirectoryChanged();
+    void desktopIntegrationAvailableChanged();
+    void sectionChanged();
+    void paginationChanged();
+    void apiKeyChanged();
+    void strictAspectRatioChanged();
+    void languageChanged();
+    void pageAppendFinished(bool success);
+
+private:
+    void setStatusMessage(const QString &message);
+    void setErrorMessage(const QString &message);
+    void updateDisplayResolution();
+    void handleSearchReply(QNetworkReply *reply, quint64 generation, int page, bool reset);
+    void handleDownloadReply(QNetworkReply *reply, const QVariantMap &wallpaper, bool setWhenFinished);
+    void setWallpaperFile(const QString &filePath);
+    void cancelActiveSearch();
+    QString ensureDownloadDirectory();
+    QString categoriesValue(const QString &category) const;
+    QString purityValue(const QString &purity) const;
+    QVariantMap wallpaperFromJson(const QJsonObject &wallpaper) const;
+    void requestSearch(bool reset);
+    void loadDownloadedWallpapers();
+    void persistPreferences();
+    QString localized(const QString &chinese, const QString &english) const;
+    void loadApiKeyFromCredentialStore();
+    void saveApiKeyToCredentialStore();
+
+    QNetworkAccessManager m_network;
+    QVariantList m_wallpapers;
+    QVariantList m_onlineWallpapers;
+    bool m_searching = false;
+    bool m_downloading = false;
+    bool m_desktopIntegrationAvailable = false;
+    QString m_statusMessage;
+    QString m_errorMessage;
+    QString m_displayResolution;
+    QString m_downloadDirectory;
+    QString m_section = "online";
+    QString m_query;
+    QString m_category = "general";
+    QString m_purity = "sfw";
+    QString m_sorting = "toplist";
+    QString m_apiKey;
+    QString m_legacyApiKey;
+    QString m_seed;
+    QPointer<QNetworkReply> m_activeSearchReply;
+    quint64 m_searchGeneration = 0;
+    int m_currentPage = 1;
+    int m_lastPage = 1;
+    bool m_strictAspectRatio = false;
+    QString m_language = "zh-Hans";
+};
