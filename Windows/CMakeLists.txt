@@ -11,6 +11,7 @@ find_package(Qt6 6.8 REQUIRED COMPONENTS Core Gui Network Qml Quick QuickControl
 qt_standard_project_setup(REQUIRES 6.8)
 
 set(WALLHAVEN_ICON_PATH "${CMAKE_CURRENT_SOURCE_DIR}/assets/wallhaven-icon.ico")
+file(SHA256 "${WALLHAVEN_ICON_PATH}" WALLHAVEN_ICON_HASH)
 configure_file(
     "${CMAKE_CURRENT_SOURCE_DIR}/src/resources.rc.in"
     "${CMAKE_CURRENT_BINARY_DIR}/resources.rc"
@@ -56,6 +57,7 @@ target_link_libraries(WallhavenWindows
 )
 
 install(TARGETS WallhavenWindows BUNDLE DESTINATION . RUNTIME DESTINATION bin)
+install(FILES "${WALLHAVEN_ICON_PATH}" DESTINATION bin)
 
 qt_generate_deploy_qml_app_script(
     TARGET WallhavenWindows
