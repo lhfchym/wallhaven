@@ -1,65 +1,38 @@
-# WallhavenMac
+# Wallhaven
 
-A macOS wallpaper picker for wallhaven.cc.
+一个围绕 [wallhaven.cc](https://wallhaven.cc) 开发的桌面壁纸工具，用于浏览、搜索、预览、下载图片，并设置桌面壁纸。
 
-The first milestone is a focused loop:
+本仓库按平台维护代码。`main` 仅保留项目说明和分支导航；开发、构建和打包请进入对应平台分支。
 
-1. Open the app from the Dock or menu bar shortcut.
-2. Browse a compact grid of wallpapers matched to the current Mac display.
-3. Preview a wallpaper.
-4. Set it as the desktop wallpaper.
+## 平台分支
 
-## Development
+| 平台 | 分支 | 代码与构建说明 |
+| --- | --- | --- |
+| macOS | [`mac`](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/mac) | 原 macOS 版本，使用 SwiftUI / AppKit；见分支根目录的 [README](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/mac/README.md)。 |
+| Linux / KDE Plasma | [`feat/kubuntu-plasma-bluecurve`](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/feat/kubuntu-plasma-bluecurve) | Qt 6 / QML 版本；见 [Linux 目录](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/feat/kubuntu-plasma-bluecurve/Linux)。 |
+| Windows | [`codex/windows-port`](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/codex/windows-port) | Qt 6 / QML 版本，集成 Windows 桌面与凭据接口；见 [Windows 目录](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/codex/windows-port/Windows)。 |
+| Haiku | [`feat/haiku-native-port`](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/feat/haiku-native-port) | C++ / Haiku 原生版本；见 [Haiku 使用与构建说明](http://10.0.0.162:8082/lhfchym/wallhaven/src/branch/feat/haiku-native-port/Haiku/README.md)。 |
 
-This project is intentionally SwiftPM-first, so the early prototype can build without a full Xcode project.
+## 获取代码
 
-```sh
-swift build
-swift test
-swift run WallhavenMac
-```
-
-To refresh the Launchpad/Xcode `.app` entry, regenerate and build the Xcode project:
+克隆时指定所需平台分支，例如 macOS：
 
 ```sh
-xcodegen generate
-xcodebuild -project WallhavenMac.xcodeproj -scheme WallhavenMac -configuration Debug build
+git clone --branch mac http://10.0.0.162:8082/lhfchym/wallhaven.git
 ```
 
-To build a local test DMG:
+已有本地仓库时，可以获取远端分支并切换：
 
 ```sh
-Scripts/package_dmg.sh
+git fetch origin
+git switch mac
 ```
 
-The DMG is written to `dist/` using the version in `project.yml`. This local test build is signed for local
-running, not notarized.
+其他平台将 `mac` 替换为表中的分支名称。构建依赖、运行命令和安装方式以对应分支内的说明为准。
 
-By default, packaging increments the patch component of `MARKETING_VERSION` and mirrors it to
-`CURRENT_PROJECT_VERSION`. For example, `0.1.1` becomes `0.1.2`; after manually setting `0.2.0`,
-the next package build becomes `0.2.1`.
+## 仓库维护
 
-Useful local tools:
-
-```sh
-swiftformat .
-```
-
-SwiftLint is configured in the repo, but installing it through Homebrew currently requires full Xcode on this
-machine. Full Xcode is still recommended for day-to-day SwiftUI work. If Xcode is installed later, run:
-
-```sh
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -license accept
-brew install swiftlint
-xcodegen generate
-```
-
-## Current Scope
-
-- macOS only.
-- Dock app with a menu bar shortcut.
-- SwiftUI + AppKit.
-- wallhaven API integration.
-- Automatic display-aware wallpaper matching.
-- Local cache and history.
+- `main` 用于维护项目介绍、平台入口和通用说明。
+- 各平台的功能开发、修复、测试和打包在对应平台分支进行。
+- 平台分支可能保留共同基线中的其他平台目录，请以表中指定的目录为入口。
+- 本次整理将原 `main` 的完整 macOS 代码及提交历史保留在 `mac` 分支，基线提交为 `f185cf6681a954c7fbdab34b14c60a6261044884`（`v0.2.0`）。原有平台分支和标签保持不变。
