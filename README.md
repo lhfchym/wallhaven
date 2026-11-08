@@ -1,83 +1,54 @@
-# Wallhaven
+# Wallhaven for Windows
 
-Wallhaven wallpaper browser for macOS, KDE Plasma on Linux, and Windows.
+在 Windows 桌面上浏览 [wallhaven.cc](https://wallhaven.cc)，搜索、预览、下载并设置壁纸。
 
-- `Sources/` contains the original macOS SwiftUI client.
-- `Linux/` contains the Qt 6 / QML client for Kubuntu 26.04 LTS, KDE Plasma and Wayland.
-- `Windows/` contains the Qt 6 / QML client using Windows desktop and credential APIs.
+本分支为 `codex/windows-port`，使用 Qt 6、C++20 和 QML，通过 Windows 原生接口设置壁纸并保存凭据。应用名称为 **WallhavenWindows**。
 
-The first milestone is a focused loop:
+## 功能
 
-1. Open the app from the Dock or menu bar shortcut.
-2. Browse a compact grid of wallpapers matched to the current Mac display.
-3. Preview a wallpaper.
-4. Set it as the desktop wallpaper.
+- 关键词搜索、分类、内容分级及多种排序方式。
+- 按显示器分辨率筛选，可选择严格匹配宽高比。
+- 缩略图网格、选中预览和自动加载下一页。
+- 原图下载、本地下载库、文件删除及重新应用壁纸。
+- 通过 `IDesktopWallpaper` 将图片设置到所有显示器。
+- 中文 / 英文界面、原生下载目录选择器和 Windows 凭据管理器集成。
 
-## macOS development
+“收藏排行”按 Wallhaven 的收藏数量排序，不是个人收藏夹同步。
 
-This project is intentionally SwiftPM-first, so the early prototype can build without a full Xcode project.
+## 快速开始
 
-```sh
-swift build
-swift test
-swift run WallhavenMac
+目标系统为 Windows 10 1809+ 或 Windows 11 x64。开发需要 Visual Studio 2022 C++ 工具链、Windows SDK、CMake、Ninja 和 Qt 6.8.3 MSVC 2022 x64。
+
+从仓库页面复制克隆地址，替换 `<REPOSITORY_URL>`，在 PowerShell 中执行：
+
+```powershell
+git clone --branch codex/windows-port <REPOSITORY_URL> wallhaven
+cd wallhaven
+.\Windows\build.ps1 -Configuration Release -Package
 ```
 
-To refresh the Launchpad/Xcode `.app` entry, regenerate and build the Xcode project:
+打包结果位于 `Windows\dist\WallhavenWindows-Release-<时间戳>\`。运行其中的 `bin\WallhavenWindows.exe`，分发时保留整个输出目录。
 
-```sh
-xcodegen generate
-xcodebuild -project WallhavenMac.xcodeproj -scheme WallhavenMac -configuration Debug build
-```
+完整依赖安装、Debug 构建、Qt 路径设置和排错说明见 **[Windows/README.md](Windows/README.md)**。
 
-To build a local test DMG:
+## 使用说明
 
-```sh
-Scripts/package_dmg.sh
-```
+从“最热”“最新”或“收藏排行”进入图库，也可以输入关键词搜索。选中图片后可下载、打开来源页面或设为桌面壁纸；“已下载”用于管理本地图片。设置中可调整语言、下载目录、宽高比匹配及可选 API Key。
 
-The DMG is written to `dist/` using the version in `project.yml`. This local test build is signed for local
-running, not notarized.
+下载默认保存在系统“图片”目录下的 `Wallhaven` 文件夹。普通 SFW 搜索无需 API Key；填写的密钥保存在 Windows 凭据管理器中。
 
-By default, packaging increments the patch component of `MARKETING_VERSION` and mirrors it to
-`CURRENT_PROJECT_VERSION`. For example, `0.1.1` becomes `0.1.2`; after manually setting `0.2.0`,
-the next package build becomes `0.2.1`.
+设置壁纸使用填充模式，并同时应用到所有显示器，当前没有逐屏选择入口。本地下载库的删除操作会直接删除文件。
 
-Useful local tools:
+## 代码入口
 
-```sh
-swiftformat .
-```
+| 路径 | 内容 |
+| --- | --- |
+| `Windows/qml/` | QML 界面 |
+| `Windows/src/` | 搜索、下载、本地库、桌面壁纸与凭据集成 |
+| `Windows/assets/` | EXE 和窗口图标 |
+| `Windows/build.ps1` | 工具链发现、构建与依赖打包 |
+| `Windows/CMakeLists.txt` | Windows 构建与安装配置 |
 
-SwiftLint is configured in the repo, but installing it through Homebrew currently requires full Xcode on this
-machine. Full Xcode is still recommended for day-to-day SwiftUI work. If Xcode is installed later, run:
+本分支保留了 macOS 和 Linux 的历史代码；Windows 开发以 `Windows/` 为入口。其他平台分别在 `mac` 和 `feat/kubuntu-plasma-bluecurve` 分支维护，项目总览见 `main` 分支。
 
-```sh
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -license accept
-brew install swiftlint
-xcodegen generate
-```
-
-## macOS scope
-
-- macOS only.
-- Dock app with a menu bar shortcut.
-- SwiftUI + AppKit.
-- wallhaven API integration.
-- Automatic display-aware wallpaper matching.
-- Local cache and history.
-
-## Linux: Kubuntu / KDE Plasma
-
-The Linux client is a separate Qt 6 / QML application designed for KDE Plasma on Wayland. Its visual layer is Bluecurve-inspired and uses the active Bluecurve icon theme for action buttons when that theme is selected in Plasma.
-
-```sh
-cmake -S Linux -B Linux/build -G Ninja
-cmake --build Linux/build
-Linux/build/WallhavenLinux
-```
-
-The application should be launched from the graphical Plasma session. It supports display-aware Wallhaven search, Chinese/English UI, KDE Wallet API-key storage, downloaded-wallpaper management, automatic next-page loading that preserves the gallery position, Plasma wallpaper application, and an XDG Wallpaper Portal fallback.
-
-For Flatpak installation and further Linux details, see [Linux/README.md](Linux/README.md).
+壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。
