@@ -102,3 +102,7 @@ Flatpak 清单允许联网、Wayland / 回退 X11、KDE Wallet 访问和系统�
 - [qml/Main.qml](qml/Main.qml)：界面与交互。
 - [src/WallpaperController.cpp](src/WallpaperController.cpp)：搜索、下载、本地库及系统集成。
 - [packaging/](packaging/)：Flatpak 清单、桌面入口和图标。
+
+## 许可证
+
+源代码与项目文档采用 [MIT 许可证](../LICENSE)。壁纸图片的权利归各自权利人所有。

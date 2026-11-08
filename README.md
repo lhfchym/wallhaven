@@ -51,4 +51,8 @@ cd wallhaven
 
 本分支保留了 macOS 和 Linux 的历史代码；Windows 开发以 `Windows/` 为入口。其他平台分别在 `mac` 和 `feat/kubuntu-plasma-bluecurve` 分支维护，项目总览见 `main` 分支。
 
-壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。
+## 许可证
+
+源代码与项目文档采用 [MIT 许可证](LICENSE)。
+
+壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。 MIT 许可证不授予这些壁纸图片的使用权。

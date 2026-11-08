@@ -128,3 +128,7 @@ Qt 6.8 的 QML 扫描工具在部分非 ASCII 路径下会出现转码问题。�
 - [src/WallpaperController.cpp](src/WallpaperController.cpp)：搜索、下载、本地库及偏好。
 - [src/WindowsDesktopWallpaperService.cpp](src/WindowsDesktopWallpaperService.cpp)：桌面壁纸设置。
 - [src/WindowsCredentialStore.cpp](src/WindowsCredentialStore.cpp)：凭据存储。
+
+## 许可证
+
+源代码与项目文档采用 [MIT 许可证](../LICENSE)。壁纸图片的权利归各自权利人所有。
