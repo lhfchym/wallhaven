@@ -1,82 +1,56 @@
-# Wallhaven
+# Wallhaven for Linux
 
-Wallhaven wallpaper browser for macOS and KDE Plasma on Linux.
+面向 KDE Plasma 的 [wallhaven.cc](https://wallhaven.cc) 桌面客户端：搜索、预览和下载壁纸，再将图片应用到 Plasma 桌面。
 
-- `Sources/` contains the original macOS SwiftUI client.
-- `Linux/` contains the Qt 6 / QML client for Kubuntu 26.04 LTS, KDE Plasma and Wayland.
+本分支为 `feat/kubuntu-plasma-bluecurve`，使用 Qt 6、C++20 和 QML，以 Kubuntu 26.04 LTS、KDE Plasma 和 Wayland 为目标环境。界面采用 Bluecurve 风格，桌面操作通过 KDE 服务集成。
 
-The first milestone is a focused loop:
+## 功能
 
-1. Open the app from the Dock or menu bar shortcut.
-2. Browse a compact grid of wallpapers matched to the current Mac display.
-3. Preview a wallpaper.
-4. Set it as the desktop wallpaper.
+- 关键词搜索、分类、内容分级及多种排序方式。
+- 按显示器分辨率筛选，可选择严格匹配宽高比。
+- 壁纸网格与选中预览，滚动加载下一页时保留当前位置。
+- 原图下载、本地下载库、文件删除和再次应用壁纸。
+- 通过 Plasma D-Bus 设置桌面壁纸，必要时回退到 XDG Wallpaper Portal。
+- 中文 / 英文界面、自定义下载目录和 KDE Wallet API Key 存储。
 
-## macOS development
+“收藏排行”按 Wallhaven 的收藏数量排序，不是个人收藏夹同步。
 
-This project is intentionally SwiftPM-first, so the early prototype can build without a full Xcode project.
+## 快速开始
+
+从仓库页面复制克隆地址，替换 `<REPOSITORY_URL>`：
 
 ```sh
-swift build
-swift test
-swift run WallhavenMac
+git clone --branch feat/kubuntu-plasma-bluecurve <REPOSITORY_URL> wallhaven
+cd wallhaven
 ```
 
-To refresh the Launchpad/Xcode `.app` entry, regenerate and build the Xcode project:
+准备 CMake 3.24+、Ninja、C++20 编译器、Qt 6.5+ 开发组件和 KDE Frameworks 6 Wallet，然后在仓库根目录执行：
 
 ```sh
-xcodegen generate
-xcodebuild -project WallhavenMac.xcodeproj -scheme WallhavenMac -configuration Debug build
-```
-
-To build a local test DMG:
-
-```sh
-Scripts/package_dmg.sh
-```
-
-The DMG is written to `dist/` using the version in `project.yml`. This local test build is signed for local
-running, not notarized.
-
-By default, packaging increments the patch component of `MARKETING_VERSION` and mirrors it to
-`CURRENT_PROJECT_VERSION`. For example, `0.1.1` becomes `0.1.2`; after manually setting `0.2.0`,
-the next package build becomes `0.2.1`.
-
-Useful local tools:
-
-```sh
-swiftformat .
-```
-
-SwiftLint is configured in the repo, but installing it through Homebrew currently requires full Xcode on this
-machine. Full Xcode is still recommended for day-to-day SwiftUI work. If Xcode is installed later, run:
-
-```sh
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-sudo xcodebuild -license accept
-brew install swiftlint
-xcodegen generate
-```
-
-## macOS scope
-
-- macOS only.
-- Dock app with a menu bar shortcut.
-- SwiftUI + AppKit.
-- wallhaven API integration.
-- Automatic display-aware wallpaper matching.
-- Local cache and history.
-
-## Linux: Kubuntu / KDE Plasma
-
-The Linux client is a separate Qt 6 / QML application designed for KDE Plasma on Wayland. Its visual layer is Bluecurve-inspired and uses the active Bluecurve icon theme for action buttons when that theme is selected in Plasma.
-
-```sh
-cmake -S Linux -B Linux/build -G Ninja
+cmake -S Linux -B Linux/build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build Linux/build
 Linux/build/WallhavenLinux
 ```
 
-The application should be launched from the graphical Plasma session. It supports display-aware Wallhaven search, Chinese/English UI, KDE Wallet API-key storage, downloaded-wallpaper management, automatic next-page loading that preserves the gallery position, Plasma wallpaper application, and an XDG Wallpaper Portal fallback.
+请在图形化 Plasma 会话内运行。完整依赖、安装、Flatpak 打包和排错说明见 **[Linux/README.md](Linux/README.md)**。
 
-For Flatpak installation and further Linux details, see [Linux/README.md](Linux/README.md).
+## 使用说明
+
+从“最热”“最新”或“收藏排行”进入图库，也可以输入关键词搜索。选中图片后可下载、打开来源页面或设为桌面壁纸；“已下载”用于管理本地图片。设置中可调整语言、下载位置、宽高比匹配及可选 API Key。
+
+默认下载位置是系统图片目录下的 `WallhavenLinux` 文件夹，通常为 `~/Pictures/WallhavenLinux`。普通 SFW 搜索无需 API Key；填写的密钥保存在 KDE Wallet。
+
+Plasma 直接集成会更新当前会话的所有桌面。通过 Portal 设置时，交互和支持范围由桌面门户服务决定。本地下载库的删除操作会直接删除文件。
+
+## 代码入口
+
+| 路径 | 内容 |
+| --- | --- |
+| `Linux/qml/` | QML 界面与 Bluecurve 风格组件 |
+| `Linux/src/` | 搜索、下载、本地库、KWallet 与桌面集成 |
+| `Linux/packaging/` | 桌面入口、图标、应用元数据和 Flatpak 清单 |
+| `Linux/CMakeLists.txt` | Linux 构建与安装配置 |
+
+本分支保留了 `Sources/` 等 macOS 历史目录；Linux 开发以 `Linux/` 为入口。macOS 当前版本在 `mac` 分支，Windows 版本在 `codex/windows-port` 分支，项目总览见 `main` 分支。
+
+壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。
