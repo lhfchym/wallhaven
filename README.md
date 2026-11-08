@@ -25,23 +25,23 @@ Wallhaven 是基于 [wallhaven.cc](https://wallhaven.cc) 的非官方桌面客�
 
 | 平台 | 分支 | 技术栈 | 构建说明 |
 | --- | --- | --- | --- |
-| macOS 14+ | `mac` | SwiftUI / AppKit | 分支根目录的 `README.md` |
-| Windows 10 1809+ / 11，x64 | `codex/windows-port` | Qt 6 / QML / Windows API | `Windows/README.md` |
-| Linux / KDE Plasma | `feat/kubuntu-plasma-bluecurve` | Qt 6 / QML / KDE Frameworks 6 | `Linux/README.md` |
-| Haiku | `feat/haiku-native-port` | C++ / Haiku 原生界面 | `Haiku/README.md` |
+| macOS 14+ | [`mac`](https://github.com/lhfchym/wallhaven/tree/mac) | SwiftUI / AppKit | [macOS 使用与构建](https://github.com/lhfchym/wallhaven/blob/mac/README.md) |
+| Windows 10 1809+ / 11，x64 | [`codex/windows-port`](https://github.com/lhfchym/wallhaven/tree/codex/windows-port) | Qt 6 / QML / Windows API | [Windows 使用与构建](https://github.com/lhfchym/wallhaven/blob/codex/windows-port/Windows/README.md) |
+| Linux / KDE Plasma | [`feat/kubuntu-plasma-bluecurve`](https://github.com/lhfchym/wallhaven/tree/feat/kubuntu-plasma-bluecurve) | Qt 6 / QML / KDE Frameworks 6 | [Linux 使用与构建](https://github.com/lhfchym/wallhaven/blob/feat/kubuntu-plasma-bluecurve/Linux/README.md) |
+| Haiku | [独立仓库](https://github.com/lhfchym/wallhaven-haiku) | C++ / Haiku 原生界面 | [Wallhaven for Haiku](https://github.com/lhfchym/wallhaven-haiku#readme) |
 
 在仓库页面的分支选择器中切换到相应分支，即可阅读该平台的 README。Linux 版本以 Kubuntu 26.04 LTS、KDE Plasma 和 Wayland 为目标环境。
 
 ## 获取代码
 
-从仓库页面的 **Code** 菜单复制克隆地址，用它替换下面的 `<REPOSITORY_URL>`。以 macOS 为例：
+以 macOS 为例：
 
 ```sh
-git clone --branch mac <REPOSITORY_URL> wallhaven
+git clone --branch mac https://github.com/lhfchym/wallhaven.git wallhaven
 cd wallhaven
 ```
 
-其他平台将 `mac` 替换为上表中的分支名称。已克隆完整仓库时，也可以切换平台：
+Windows 和 Linux 将 `mac` 替换为上表中的分支名称。Haiku 在独立仓库维护。已克隆完整仓库时，也可以切换平台：
 
 ```sh
 git fetch origin
