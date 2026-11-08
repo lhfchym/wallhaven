@@ -17,10 +17,10 @@
 
 ## 快速开始
 
-从仓库页面复制克隆地址，替换 `<REPOSITORY_URL>`：
+克隆本平台分支：
 
 ```sh
-git clone --branch feat/kubuntu-plasma-bluecurve <REPOSITORY_URL> wallhaven
+git clone --branch feat/kubuntu-plasma-bluecurve https://github.com/lhfchym/wallhaven.git wallhaven
 cd wallhaven
 ```
 
