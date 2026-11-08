@@ -31,10 +31,10 @@
 
 ## 获取与运行
 
-从仓库页面复制克隆地址，替换 `<REPOSITORY_URL>`：
+克隆本平台分支：
 
 ```sh
-git clone --branch mac <REPOSITORY_URL> wallhaven
+git clone --branch mac https://github.com/lhfchym/wallhaven.git wallhaven
 cd wallhaven
 swift build
 swift run WallhavenMac
