@@ -53,4 +53,8 @@ Plasma 直接集成会更新当前会话的所有桌面。通过 Portal 设置�
 
 本分支保留了 `Sources/` 等 macOS 历史目录；Linux 开发以 `Linux/` 为入口。macOS 当前版本在 `mac` 分支，Windows 版本在 `codex/windows-port` 分支，项目总览见 `main` 分支。
 
-壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。
+## 许可证
+
+源代码与项目文档采用 [MIT 许可证](LICENSE)。
+
+壁纸内容来自 Wallhaven，图片权利归各自权利人所有。本项目为非官方客户端。 MIT 许可证不授予这些壁纸图片的使用权。
