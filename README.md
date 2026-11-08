@@ -19,10 +19,10 @@
 
 目标系统为 Windows 10 1809+ 或 Windows 11 x64。开发需要 Visual Studio 2022 C++ 工具链、Windows SDK、CMake、Ninja 和 Qt 6.8.3 MSVC 2022 x64。
 
-从仓库页面复制克隆地址，替换 `<REPOSITORY_URL>`，在 PowerShell 中执行：
+在 PowerShell 中执行：
 
 ```powershell
-git clone --branch codex/windows-port <REPOSITORY_URL> wallhaven
+git clone --branch codex/windows-port https://github.com/lhfchym/wallhaven.git wallhaven
 cd wallhaven
 .\Windows\build.ps1 -Configuration Release -Package
 ```
